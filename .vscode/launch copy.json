@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/demo.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env":{
+                "PYTHONPATH":"${workspaceFolder}"
+            },
+            "args": [
+                "--cfg_file","tools/cfgs/nuscenes_models/cbgs_pillar0075_res2d_centerpoint.yaml",
+                "--ckpt","pp_multihead_nds5823_updated.pth",
+                "--data_path","data/nuscenes/v1.0-mini/samples/LIDAR_TOP/n008-2018-08-01-15-16-36-0400__LIDAR_TOP__1533151603547590.pcd.bin"
+            ],
+            "justMyCode": false
+        }
+    ]
+}
