@@ -8,7 +8,7 @@
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "program": "train.py",
+            "program": "test_kl_database.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",
             "env":{
