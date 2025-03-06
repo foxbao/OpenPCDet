@@ -15,7 +15,8 @@
                 "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","cfgs/nuscenes_models/cbgs_pillar0075_res2d_centerpoint.yaml",
+                "--cfg_file","cfgs/dataset_configs/nuscenes_dataset_mini.yaml",
+                "--version","v1.0-mini",
             ],
             "justMyCode": false
         }
