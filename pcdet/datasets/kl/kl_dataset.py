@@ -11,7 +11,76 @@ from ..dataset import DatasetTemplate
 # print(__package__)
 class KLDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+        root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
         super().__init__(dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger)
+        self.infos = []
+        self.camera_config = self.dataset_cfg.get('CAMERA_CONFIG', None)
+        if self.camera_config is not None:
+            self.use_camera = self.camera_config.get('USE_CAMERA', True)
+            self.camera_image_config = self.camera_config.IMAGE
+        else:
+            self.use_camera = False
+        self.include_kl_data(self.mode)
+        aaaa=1
+
+    def include_kl_data(self, mode):
+        self.logger.info('Loading KL dataset')
+        kl_infos = []
+
+        for info_path in self.dataset_cfg.INFO_PATH[mode]:
+            info_path = self.root_path / info_path
+            if not info_path.exists():
+                continue
+            with open(info_path, 'rb') as f:
+                infos = pickle.load(f)
+                kl_infos.extend(infos)
+
+        self.infos.extend(kl_infos)
+        self.logger.info('Total samples for KL dataset: %d' % (len(kl_infos)))
+
+    def __len__(self):
+        if self._merge_all_iters_to_one_epoch:
+            return len(self.infos) * self.total_epochs
+
+        return len(self.infos)
+    
+    def __getitem__(self, index):
+        if self._merge_all_iters_to_one_epoch:
+            index = index % len(self.infos)
+
+        info = copy.deepcopy(self.infos[index])
+        points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
+
+        input_dict = {
+            'points': points,
+            'frame_id': Path(info['lidar_path']).stem,
+            'metadata': {'token': info['token']}
+        }
+
+        if 'gt_boxes' in info:
+            if self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
+                mask = (info['num_lidar_pts'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
+            else:
+                mask = None
+
+            input_dict.update({
+                'gt_names': info['gt_names'] if mask is None else info['gt_names'][mask],
+                'gt_boxes': info['gt_boxes'] if mask is None else info['gt_boxes'][mask]
+            })
+        if self.use_camera:
+            input_dict = self.load_camera_info(input_dict, info)
+
+        data_dict = self.prepare_data(data_dict=input_dict)
+
+        if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False) and 'gt_boxes' in info:
+            gt_boxes = data_dict['gt_boxes']
+            gt_boxes[np.isnan(gt_boxes)] = 0
+            data_dict['gt_boxes'] = gt_boxes
+
+        if not self.dataset_cfg.PRED_VELOCITY and 'gt_boxes' in data_dict:
+            data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
+
+        return data_dict
 
 
 
@@ -108,6 +177,17 @@ def generate_infos(root_dir, save_path, split):
         json.dump(data, f, indent=4)
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='arg parser')
+    parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
+    parser.add_argument('--func', type=str, default='create_kl_infos', help='')
+    parser.add_argument('--version', type=str, default='v1.0-trainval', help='')
+    parser.add_argument('--with_cam', action='store_true', default=False, help='use camera or not')
+    args = parser.parse_args()
+    if args.func == 'create_nuscenes_infos':
+        ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+
+    
     root_dir = 'data/bao3d/'  # 根据实际路径调整
     save_path = 'data/bao3d/'
     for split in ['train', 'val', 'test']:
