@@ -12,7 +12,9 @@ import tqdm
 from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import transform_matrix
 from pyquaternion import Quaternion
-
+from typing import List, Tuple
+import json
+# 定义从通用标签到检测标签的映射
 map_name_from_general_to_detection = {
     'human.pedestrian.adult': 'pedestrian',
     'human.pedestrian.child': 'pedestrian',
@@ -155,6 +157,11 @@ cls_attr_dist = {
 
 
 def get_available_scenes(nusc):
+    """
+    获取可用的场景。
+    :param nusc: NuScenes 数据集类。
+    :return: 可用的场景列表。
+    """
     available_scenes = []
     print('total scene num:', len(nusc.scene))
     for scene in nusc.scene:
@@ -308,164 +315,297 @@ def obtain_sensor2top(
     sweep["sensor2lidar_translation"] = T
     return sweep
 
+# 查找最近的点云文件
+def find_nearest_pointcloud(timestamp, pointcloud_files):
+    """
+    根据时间戳查找最近的点云文件。
+    :param timestamp: 标注文件的时间戳（整数或字符串）
+    :param pointcloud_files: 点云文件列表（Path 对象）
+    :return: 最近的点云文件路径（字符串）
+    """
+    timestamp = int(timestamp)  # 确保时间戳是整数
+    # 提取点云文件的时间戳
+    pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
+    # 计算时间戳差值
+    diffs = np.abs(np.array(pointcloud_timestamps) - timestamp)
+    # 找到最小差值的索引
+    nearest_index = np.argmin(diffs)
+    return str(pointcloud_files[nearest_index])
 
-def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, max_sweeps=10, with_cam=False):
-    train_nusc_infos = []
-    val_nusc_infos = []
-    progress_bar = tqdm.tqdm(total=len(nusc.sample), desc='create_info', dynamic_ncols=True)
 
-    ref_chan = 'LIDAR_TOP'  # The radar channel from which we track back n sweeps to aggregate the point cloud.
-    chan = 'LIDAR_TOP'  # The reference channel of the current sample_rec that the point clouds are mapped to.
+# 查找点云文件
+def find_pointclouds(timestamp:str, lidar_folders:dict)->dict:
+    """
+    根据时间戳在六个文件夹中查找对应的点云文件。
+    :param timestamp: 标注文件的时间戳（字符串）
+    :param lidar_folders: 六个激光雷达的文件夹名称列表
+    :param corage_data_path: 点云文件根目录
+    :return: 一个字典，键为雷达名称，值为点云文件路径（如果文件不存在，则用 null 表示）
+    """
+    pointcloud_dict = {}
+    for lidar_name in lidar_folders:
+        pointcloud_files = list(lidar_folders[lidar_name].glob('*.bin'))  # 假设点云文件是 .pcd 格式
+        pointcloud_file=find_nearest_pointcloud(timestamp,pointcloud_files)
+        pointcloud_dict[lidar_name] = str(pointcloud_file)
+    return pointcloud_dict
 
-    for index, sample in enumerate(nusc.sample):
+# 生成 token 的工具函数
+def generate_token():
+    import uuid
+    return str(uuid.uuid4())
+def quaternion_to_yaw(rotation)->float:
+    """
+    将四元数转换为偏航角 (yaw)。
+    :param rotation: 四元数，形状为 4 的 numpy 数组。
+    :return: 偏航角
+    """
+    qx, qy, qz, qw = rotation[0], rotation[1], rotation[2], rotation[3]
+    yaw = np.arctan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy**2 + qz**2))
+    return yaw
+
+def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
+    # 确保输入是 numpy 数组
+    xyz = np.asarray(xyz)
+    lwh = np.asarray(lwh)
+    rotation = np.asarray(rotation)
+    
+    # 将四元数转换为偏航角
+    yaw = quaternion_to_yaw(rotation)
+    
+    # 将 xyz, lwh, yaw 拼接成 gt_boxes
+    gt_boxes = np.concatenate([xyz, lwh, [yaw]])
+    
+    return gt_boxes
+
+def convert_json_to_gt(annotations:List[dict]):
+    gt_boxes=[]
+    gt_names=[]
+    gt_subtype=[]
+    gt_boxes_token=[]
+    for data in annotations:
+        gt_boxes.append(convert_to_gt_boxes_7dof(data['xyz'],data['lwh'],data['rotation']))
+        if data['label']=='Vehicle':
+            gt_names.append(data['subtype'])
+        else:
+            gt_names.append(data['label'])
+        gt_subtype.append(data['subtype'])
+        gt_boxes_token.append(data['track_id'])
+    gt_boxes = np.vstack(gt_boxes)
+    gt_names = np.array(gt_names)
+    gt_subtype= np.array(gt_subtype)
+    gt_boxes_token = np.array(gt_boxes_token)
+    return gt_boxes,gt_names,gt_subtype,gt_boxes_token
+
+def json2info(json_files, sensor_folders):
+    infos = []
+    
+    progress_bar = tqdm.tqdm(total=len(json_files), desc='create_info', dynamic_ncols=True)
+    # 遍历目录下的所有 JSON 文件
+    for json_file in json_files:
         progress_bar.update()
+        # 读取文件名（时间戳）
+        timestamp = json_file.stem  # 去掉扩展名，获取文件名（时间戳）
+        
+        # 读取 JSON 文件内容
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        pointcloud_dict=find_pointclouds(timestamp, sensor_folders)
 
-        ref_sd_token = sample['data'][ref_chan]
-        ref_sd_rec = nusc.get('sample_data', ref_sd_token)
-        ref_cs_rec = nusc.get('calibrated_sensor', ref_sd_rec['calibrated_sensor_token'])
-        ref_pose_rec = nusc.get('ego_pose', ref_sd_rec['ego_pose_token'])
-        ref_time = 1e-6 * ref_sd_rec['timestamp']
-
-        ref_lidar_path, ref_boxes, _ = get_sample_data(nusc, ref_sd_token)
-
-        ref_cam_front_token = sample['data']['CAM_FRONT']
-        ref_cam_path, _, ref_cam_intrinsic = nusc.get_sample_data(ref_cam_front_token)
-
-        # Homogeneous transform from ego car frame to reference frame
-        ref_from_car = transform_matrix(
-            ref_cs_rec['translation'], Quaternion(ref_cs_rec['rotation']), inverse=True
-        )
-
-        # Homogeneous transformation matrix from global to _current_ ego car frame
-        car_from_global = transform_matrix(
-            ref_pose_rec['translation'], Quaternion(ref_pose_rec['rotation']), inverse=True,
-        )
-
+        gt_boxes,gt_names,gt_subtypes,gt_boxes_token=convert_json_to_gt(data)
+        # 为每个样本添加 timestamp、token 和 pointcloud_path
         info = {
-            'lidar_path': Path(ref_lidar_path).relative_to(data_path).__str__(),
-            'cam_front_path': Path(ref_cam_path).relative_to(data_path).__str__(),
-            'cam_intrinsic': ref_cam_intrinsic,
-            'token': sample['token'],
-            'sweeps': [],
-            'ref_from_car': ref_from_car,
-            'car_from_global': car_from_global,
-            'timestamp': ref_time,
+            'token': generate_token(),
+            'timestamp': timestamp,
+            'annotations': data,
+            'gt_boxes':gt_boxes,
+            'gt_names':gt_names,
+            'gt_subtypes':gt_subtypes,
+            'gt_boxes_token':gt_boxes_token
         }
-        if with_cam:
-            info['cams'] = dict()
-            l2e_r = ref_cs_rec["rotation"]
-            l2e_t = ref_cs_rec["translation"],
-            e2g_r = ref_pose_rec["rotation"]
-            e2g_t = ref_pose_rec["translation"]
-            l2e_r_mat = Quaternion(l2e_r).rotation_matrix
-            e2g_r_mat = Quaternion(e2g_r).rotation_matrix
+        info.update(pointcloud_dict)
+        
+        # 添加到合并后的数据中
+        infos.append(info)
+    return infos
 
-            # obtain 6 image's information per frame
-            camera_types = [
-                "CAM_FRONT",
-                "CAM_FRONT_RIGHT",
-                "CAM_FRONT_LEFT",
-                "CAM_BACK",
-                "CAM_BACK_LEFT",
-                "CAM_BACK_RIGHT",
-            ]
-            for cam in camera_types:
-                cam_token = sample["data"][cam]
-                cam_path, _, camera_intrinsics = nusc.get_sample_data(cam_token)
-                cam_info = obtain_sensor2top(
-                    nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
-                )
-                cam_info['data_path'] = Path(cam_info['data_path']).relative_to(data_path).__str__()
-                cam_info.update(camera_intrinsics=camera_intrinsics)
-                info["cams"].update({cam: cam_info})
+
+def fill_trainval_infos(data_path,split_files,sensor_folders):
+    train_kl_infos = []
+    val_kl_infos = []
+
+    for key,value in split_files.items():
+        print("Assocating " +key+" annotation with lidar data")
+        infos=json2info(value,sensor_folders)
+        for info in infos:
+            gt_boxes=info['gt_boxes']
+            locs = gt_boxes[:, :3]
+            dims = gt_boxes[:, 3:6]
+            rots = gt_boxes[:, 6].reshape(-1, 1)
+            velocity = np.zeros((gt_boxes.shape[0], 2))
+            info['gt_boxes'] = np.concatenate([locs, dims, rots, velocity], axis=1)
+        if key=='train':
+            train_kl_infos.extend(infos)
+        elif key=='val':
+            val_kl_infos.extend(infos)
+
+    return train_kl_infos, val_kl_infos
+    # train_nusc_infos = []
+    # val_nusc_infos = []
+    # progress_bar = tqdm.tqdm(total=len(nusc.sample), desc='create_info', dynamic_ncols=True)
+
+    # ref_chan = 'LIDAR_TOP'  # The radar channel from which we track back n sweeps to aggregate the point cloud.
+    # chan = 'LIDAR_TOP'  # The reference channel of the current sample_rec that the point clouds are mapped to.
+
+    # for index, sample in enumerate(nusc.sample):
+    #     progress_bar.update()
+
+    #     ref_sd_token = sample['data'][ref_chan]
+    #     ref_sd_rec = nusc.get('sample_data', ref_sd_token)
+    #     ref_cs_rec = nusc.get('calibrated_sensor', ref_sd_rec['calibrated_sensor_token'])
+    #     ref_pose_rec = nusc.get('ego_pose', ref_sd_rec['ego_pose_token'])
+    #     ref_time = 1e-6 * ref_sd_rec['timestamp']
+
+    #     ref_lidar_path, ref_boxes, _ = get_sample_data(nusc, ref_sd_token)
+
+    #     ref_cam_front_token = sample['data']['CAM_FRONT']
+    #     ref_cam_path, _, ref_cam_intrinsic = nusc.get_sample_data(ref_cam_front_token)
+
+    #     # Homogeneous transform from ego car frame to reference frame
+    #     ref_from_car = transform_matrix(
+    #         ref_cs_rec['translation'], Quaternion(ref_cs_rec['rotation']), inverse=True
+    #     )
+
+    #     # Homogeneous transformation matrix from global to _current_ ego car frame
+    #     car_from_global = transform_matrix(
+    #         ref_pose_rec['translation'], Quaternion(ref_pose_rec['rotation']), inverse=True,
+    #     )
+
+    #     info = {
+    #         'lidar_path': Path(ref_lidar_path).relative_to(data_path).__str__(),
+    #         'cam_front_path': Path(ref_cam_path).relative_to(data_path).__str__(),
+    #         'cam_intrinsic': ref_cam_intrinsic,
+    #         'token': sample['token'],
+    #         'sweeps': [],
+    #         'ref_from_car': ref_from_car,
+    #         'car_from_global': car_from_global,
+    #         'timestamp': ref_time,
+    #     }
+    #     if with_cam:
+    #         info['cams'] = dict()
+    #         l2e_r = ref_cs_rec["rotation"]
+    #         l2e_t = ref_cs_rec["translation"],
+    #         e2g_r = ref_pose_rec["rotation"]
+    #         e2g_t = ref_pose_rec["translation"]
+    #         l2e_r_mat = Quaternion(l2e_r).rotation_matrix
+    #         e2g_r_mat = Quaternion(e2g_r).rotation_matrix
+
+    #         # obtain 6 image's information per frame
+    #         camera_types = [
+    #             "CAM_FRONT",
+    #             "CAM_FRONT_RIGHT",
+    #             "CAM_FRONT_LEFT",
+    #             "CAM_BACK",
+    #             "CAM_BACK_LEFT",
+    #             "CAM_BACK_RIGHT",
+    #         ]
+    #         for cam in camera_types:
+    #             cam_token = sample["data"][cam]
+    #             cam_path, _, camera_intrinsics = nusc.get_sample_data(cam_token)
+    #             cam_info = obtain_sensor2top(
+    #                 nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
+    #             )
+    #             cam_info['data_path'] = Path(cam_info['data_path']).relative_to(data_path).__str__()
+    #             cam_info.update(camera_intrinsics=camera_intrinsics)
+    #             info["cams"].update({cam: cam_info})
         
 
-        sample_data_token = sample['data'][chan]
-        curr_sd_rec = nusc.get('sample_data', sample_data_token)
-        sweeps = []
-        while len(sweeps) < max_sweeps - 1:
-            if curr_sd_rec['prev'] == '':
-                if len(sweeps) == 0:
-                    sweep = {
-                        'lidar_path': Path(ref_lidar_path).relative_to(data_path).__str__(),
-                        'sample_data_token': curr_sd_rec['token'],
-                        'transform_matrix': None,
-                        'time_lag': curr_sd_rec['timestamp'] * 0,
-                    }
-                    sweeps.append(sweep)
-                else:
-                    sweeps.append(sweeps[-1])
-            else:
-                curr_sd_rec = nusc.get('sample_data', curr_sd_rec['prev'])
+    #     sample_data_token = sample['data'][chan]
+    #     curr_sd_rec = nusc.get('sample_data', sample_data_token)
+    #     sweeps = []
+    #     while len(sweeps) < max_sweeps - 1:
+    #         if curr_sd_rec['prev'] == '':
+    #             if len(sweeps) == 0:
+    #                 sweep = {
+    #                     'lidar_path': Path(ref_lidar_path).relative_to(data_path).__str__(),
+    #                     'sample_data_token': curr_sd_rec['token'],
+    #                     'transform_matrix': None,
+    #                     'time_lag': curr_sd_rec['timestamp'] * 0,
+    #                 }
+    #                 sweeps.append(sweep)
+    #             else:
+    #                 sweeps.append(sweeps[-1])
+    #         else:
+    #             curr_sd_rec = nusc.get('sample_data', curr_sd_rec['prev'])
 
-                # Get past pose
-                current_pose_rec = nusc.get('ego_pose', curr_sd_rec['ego_pose_token'])
-                global_from_car = transform_matrix(
-                    current_pose_rec['translation'], Quaternion(current_pose_rec['rotation']), inverse=False,
-                )
+    #             # Get past pose
+    #             current_pose_rec = nusc.get('ego_pose', curr_sd_rec['ego_pose_token'])
+    #             global_from_car = transform_matrix(
+    #                 current_pose_rec['translation'], Quaternion(current_pose_rec['rotation']), inverse=False,
+    #             )
 
-                # Homogeneous transformation matrix from sensor coordinate frame to ego car frame.
-                current_cs_rec = nusc.get(
-                    'calibrated_sensor', curr_sd_rec['calibrated_sensor_token']
-                )
-                car_from_current = transform_matrix(
-                    current_cs_rec['translation'], Quaternion(current_cs_rec['rotation']), inverse=False,
-                )
+    #             # Homogeneous transformation matrix from sensor coordinate frame to ego car frame.
+    #             current_cs_rec = nusc.get(
+    #                 'calibrated_sensor', curr_sd_rec['calibrated_sensor_token']
+    #             )
+    #             car_from_current = transform_matrix(
+    #                 current_cs_rec['translation'], Quaternion(current_cs_rec['rotation']), inverse=False,
+    #             )
 
-                tm = reduce(np.dot, [ref_from_car, car_from_global, global_from_car, car_from_current])
+    #             tm = reduce(np.dot, [ref_from_car, car_from_global, global_from_car, car_from_current])
 
-                lidar_path = nusc.get_sample_data_path(curr_sd_rec['token'])
+    #             lidar_path = nusc.get_sample_data_path(curr_sd_rec['token'])
 
-                time_lag = ref_time - 1e-6 * curr_sd_rec['timestamp']
+    #             time_lag = ref_time - 1e-6 * curr_sd_rec['timestamp']
 
-                sweep = {
-                    'lidar_path': Path(lidar_path).relative_to(data_path).__str__(),
-                    'sample_data_token': curr_sd_rec['token'],
-                    'transform_matrix': tm,
-                    'global_from_car': global_from_car,
-                    'car_from_current': car_from_current,
-                    'time_lag': time_lag,
-                }
-                sweeps.append(sweep)
+    #             sweep = {
+    #                 'lidar_path': Path(lidar_path).relative_to(data_path).__str__(),
+    #                 'sample_data_token': curr_sd_rec['token'],
+    #                 'transform_matrix': tm,
+    #                 'global_from_car': global_from_car,
+    #                 'car_from_current': car_from_current,
+    #                 'time_lag': time_lag,
+    #             }
+    #             sweeps.append(sweep)
 
-        info['sweeps'] = sweeps
+    #     info['sweeps'] = sweeps
 
-        assert len(info['sweeps']) == max_sweeps - 1, \
-            f"sweep {curr_sd_rec['token']} only has {len(info['sweeps'])} sweeps, " \
-            f"you should duplicate to sweep num {max_sweeps - 1}"
+    #     assert len(info['sweeps']) == max_sweeps - 1, \
+    #         f"sweep {curr_sd_rec['token']} only has {len(info['sweeps'])} sweeps, " \
+    #         f"you should duplicate to sweep num {max_sweeps - 1}"
 
-        if not test:
-            annotations = [nusc.get('sample_annotation', token) for token in sample['anns']]
+    #     if not test:
+    #         annotations = [nusc.get('sample_annotation', token) for token in sample['anns']]
 
-            # the filtering gives 0.5~1 map improvement
-            num_lidar_pts = np.array([anno['num_lidar_pts'] for anno in annotations])
-            num_radar_pts = np.array([anno['num_radar_pts'] for anno in annotations])
-            mask = (num_lidar_pts + num_radar_pts > 0)
+    #         # the filtering gives 0.5~1 map improvement
+    #         num_lidar_pts = np.array([anno['num_lidar_pts'] for anno in annotations])
+    #         num_radar_pts = np.array([anno['num_radar_pts'] for anno in annotations])
+    #         mask = (num_lidar_pts + num_radar_pts > 0)
 
-            locs = np.array([b.center for b in ref_boxes]).reshape(-1, 3)
-            dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)[:, [1, 0, 2]]  # wlh == > dxdydz (lwh)
-            velocity = np.array([b.velocity for b in ref_boxes]).reshape(-1, 3)
-            rots = np.array([quaternion_yaw(b.orientation) for b in ref_boxes]).reshape(-1, 1)
-            names = np.array([b.name for b in ref_boxes])
-            tokens = np.array([b.token for b in ref_boxes])
-            gt_boxes = np.concatenate([locs, dims, rots, velocity[:, :2]], axis=1)
+    #         locs = np.array([b.center for b in ref_boxes]).reshape(-1, 3)
+    #         dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)[:, [1, 0, 2]]  # wlh == > dxdydz (lwh)
+    #         velocity = np.array([b.velocity for b in ref_boxes]).reshape(-1, 3)
+    #         rots = np.array([quaternion_yaw(b.orientation) for b in ref_boxes]).reshape(-1, 1)
+    #         names = np.array([b.name for b in ref_boxes])
+    #         tokens = np.array([b.token for b in ref_boxes])
+    #         gt_boxes = np.concatenate([locs, dims, rots, velocity[:, :2]], axis=1)
 
-            assert len(annotations) == len(gt_boxes) == len(velocity)
+    #         assert len(annotations) == len(gt_boxes) == len(velocity)
 
-            info['gt_boxes'] = gt_boxes[mask, :]
-            info['gt_boxes_velocity'] = velocity[mask, :]
-            info['gt_names'] = np.array([map_name_from_general_to_detection[name] for name in names])[mask]
-            info['gt_boxes_token'] = tokens[mask]
-            info['num_lidar_pts'] = num_lidar_pts[mask]
-            info['num_radar_pts'] = num_radar_pts[mask]
+    #         info['gt_boxes'] = gt_boxes[mask, :]
+    #         info['gt_boxes_velocity'] = velocity[mask, :]
+    #         info['gt_names'] = np.array([map_name_from_general_to_detection[name] for name in names])[mask]
+    #         info['gt_boxes_token'] = tokens[mask]
+    #         info['num_lidar_pts'] = num_lidar_pts[mask]
+    #         info['num_radar_pts'] = num_radar_pts[mask]
 
-        if sample['scene_token'] in train_scenes:
-            train_nusc_infos.append(info)
-        else:
-            val_nusc_infos.append(info)
+    #     if sample['scene_token'] in train_scenes:
+    #         train_nusc_infos.append(info)
+    #     else:
+    #         val_nusc_infos.append(info)
 
-    progress_bar.close()
-    return train_nusc_infos, val_nusc_infos
+    # progress_bar.close()
+    # return train_nusc_infos, val_nusc_infos
 
 
 def boxes_lidar_to_nusenes(det_info):

@@ -20,16 +20,16 @@ if __name__ == '__main__':
     #     # dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../').resolve()
         data_path=ROOT_DIR / 'data' / 'kl'
-        create_kl_infos(args.version, data_path, data_path, max_sweeps=10, with_cam=args.with_cam)
+        create_kl_infos(args.version, data_path, data_path,with_cam=args.with_cam)
 
     dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
     ROOT_DIR = (Path(__file__).resolve().parent / '../').resolve()
     dataset_cfg.VERSION = args.version
-    
+    data_path=ROOT_DIR / 'data' / 'kl'
     kl_dataset = KLDataset(
         dataset_cfg=dataset_cfg, class_names=None,
         root_path=ROOT_DIR / 'data' / 'kl',
         logger=common_utils.create_logger(), training=True
     )
 
-    kl_dataset.create_groundtruth_database(max_sweeps=dataset_cfg.MAX_SWEEPS)
+    kl_dataset.create_groundtruth_database()

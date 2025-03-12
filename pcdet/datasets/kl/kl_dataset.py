@@ -1,5 +1,5 @@
 import copy
-import json
+
 import numpy as np
 import os
 import pickle
@@ -10,6 +10,7 @@ from typing import List, Tuple
 import shutil
 from ..dataset import DatasetTemplate
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
+from scipy.spatial.transform import Rotation as R
 # print(__name__)
 # print(__package__)
 class KLDataset(DatasetTemplate):
@@ -24,7 +25,15 @@ class KLDataset(DatasetTemplate):
         else:
             self.use_camera = False
         self.include_kl_data(self.mode)
-        aaaa=1
+        self.lidar_extrinsic=[
+            7.336647033691406,  # Tx
+            1.4024821519851685,  # Ty
+            -0.07428044080734253,  # Tz
+            0.0009888865918614663,  # qx
+            0.004264600754721424,   # qy
+            0.3800393157007753,     # qz
+            0.9249599741639623      # qw
+        ]
 
     def include_kl_data(self, mode):
         self.logger.info('Loading KL dataset')
@@ -41,7 +50,7 @@ class KLDataset(DatasetTemplate):
         self.infos.extend(kl_infos)
         self.logger.info('Total samples for KL dataset: %d' % (len(kl_infos)))
 
-    def get_lidar_with_sweeps(self, index, max_sweeps=1):
+    def get_lidar(self, index):
         info = self.infos[index]
         lidar_path = self.root_path / info['helios_front_left']
 
@@ -50,8 +59,6 @@ class KLDataset(DatasetTemplate):
         points = np.concatenate((points, times), axis=1)
         return points
 
-    def get_lidar(self,index):
-        pass
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
@@ -64,11 +71,11 @@ class KLDataset(DatasetTemplate):
             index = index % len(self.infos)
 
         info = copy.deepcopy(self.infos[index])
-        points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
-
+        points = self.get_lidar(index)
+        points=self.transform_points(points, self.lidar_extrinsic)
         input_dict = {
             'points': points,
-            'frame_id': Path(info['lidar_path']).stem,
+            'frame_id': Path(info['helios_front_left']).stem,
             'metadata': {'token': info['token']}
         }
 
@@ -96,23 +103,46 @@ class KLDataset(DatasetTemplate):
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
 
         return data_dict
+    
+    def evaluation(self, det_annos, class_names, **kwargs):
+        raise NotImplementedError
+    
+    def transform_points(self,point_cloud, extrinsic):
+        # 提取平移向量
+        translation = np.array(extrinsic[:3])  # [Tx, Ty, Tz]
 
-    def create_groundtruth_database(self, used_classes=None, max_sweeps=10):
+        # 提取四元数
+        quaternion = np.array(extrinsic[3:])  # [qx, qy, qz, qw]
+        rotation_matrix = R.from_quat(quaternion).as_matrix()
+        positions = point_cloud[:, :3]
+        rotated_positions = np.dot(positions, rotation_matrix.T)
+        transformed_positions = rotated_positions + translation
+        point_cloud[:, :3] = transformed_positions
+        return point_cloud
+
+
+    def create_groundtruth_database(self,used_classes=None):
         import torch
 
-        database_save_path = self.root_path / f'gt_database_{max_sweeps}sweeps_withvelo'
-        db_info_save_path = self.root_path / f'kl_dbinfos_{max_sweeps}sweeps_withvelo.pkl'
+        database_save_path = self.root_path / f'gt_database'
+        db_info_save_path = self.root_path / f'kl_dbinfos.pkl'
 
         database_save_path.mkdir(parents=True, exist_ok=True)
+
         all_db_infos = {}
 
+                
         for idx in tqdm(range(len(self.infos))):
+            # print('gt_database sample: %d/%d' % (idx + 1, len(self.infos)))
             sample_idx = idx
             info = self.infos[idx]
-            points = self.get_lidar_with_sweeps(idx, max_sweeps=max_sweeps)
+            points = self.get_lidar(idx)
+
+            points= self.transform_points(points, self.lidar_extrinsic)
             gt_boxes = info['gt_boxes']
             gt_names = info['gt_names']
 
+            # tranform the points from lidar coordinate to vehicle coordinate
             box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
                 torch.from_numpy(points[:, 0:3]).unsqueeze(dim=0).float().cuda(),
                 torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
@@ -216,52 +246,8 @@ def generate_infos(dataset_root_dir, dataset_save_dir, split):
         pcd_file = os.path.join(save_dir, base.replace('.bin', '.pcd'))
         bin_to_pcd(bin_file, pcd_file)
 
-def quaternion_to_yaw(rotation)->float:
-    """
-    将四元数转换为偏航角 (yaw)。
-    :param rotation: 四元数，形状为 4 的 numpy 数组。
-    :return: 偏航角
-    """
-    qx, qy, qz, qw = rotation[0], rotation[1], rotation[2], rotation[3]
-    yaw = np.arctan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy**2 + qz**2))
-    return yaw
-
-def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
-    # 确保输入是 numpy 数组
-    xyz = np.asarray(xyz)
-    lwh = np.asarray(lwh)
-    rotation = np.asarray(rotation)
-    
-    # 将四元数转换为偏航角
-    yaw = quaternion_to_yaw(rotation)
-    
-    # 将 xyz, lwh, yaw 拼接成 gt_boxes
-    gt_boxes = np.concatenate([xyz, lwh, [yaw]])
-    
-    return gt_boxes
-
-def convert_json_to_gt(annotations:List[dict]):
-    gt_boxes=[]
-    gt_names=[]
-    gt_subtype=[]
-    gt_boxes_token=[]
-    for data in annotations:
-        gt_boxes.append(convert_to_gt_boxes_7dof(data['xyz'],data['lwh'],data['rotation']))
-        if data['label']=='Vehicle':
-            gt_names.append(data['subtype'])
-        else:
-            gt_names.append(data['label'])
-        gt_subtype.append(data['subtype'])
-        gt_boxes_token.append(data['track_id'])
-    gt_boxes = np.vstack(gt_boxes)
-    gt_names = np.array(gt_names)
-    gt_subtype= np.array(gt_subtype)
-    gt_boxes_token = np.array(gt_boxes_token)
-    return gt_boxes,gt_names,gt_subtype,gt_boxes_token
-
 def split_label(label_dir,save_dir):
     json_files = list(label_dir.glob('*.json'))
-
     total_files = len(json_files)
     train_size = int(total_files * 0.8)
     val_size = int(total_files * 0.1)
@@ -281,85 +267,10 @@ def split_label(label_dir,save_dir):
         for file in files:
             shutil.copy(file, split_dir / file.name)
         print(f"{split} 目录已创建，复制了 {len(files)} 个文件")
+    return split_files
 
-
-def merge_json_files(input_dir, output_file,sensor_folders):
-    merged_data = []
-    
-    # 遍历目录下的所有 JSON 文件
-    for json_file in input_dir.glob('*.json'):
-        # 读取文件名（时间戳）
-        timestamp = json_file.stem  # 去掉扩展名，获取文件名（时间戳）
-        
-        # 读取 JSON 文件内容
-        with open(json_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        pointcloud_dict=find_pointclouds(timestamp, sensor_folders)
-
-        gt_boxes,gt_names,gt_subtypes,gt_boxes_token=convert_json_to_gt(data)
-        # 为每个样本添加 timestamp、token 和 pointcloud_path
-        sample = {
-            'timestamp': timestamp,
-            'token': generate_token(),
-            'annotations': data,
-            'gt_boxes':gt_boxes,
-            'gt_names':gt_names,
-            'gt_subtypes':gt_subtypes,
-            'gt_boxes_token':gt_boxes_token
-        }
-        sample.update(pointcloud_dict)
-        
-        # 添加到合并后的数据中
-        merged_data.append(sample)
-    return merged_data
-    # # 将合并后的数据保存到输出文件
-    # with open(output_file, 'w', encoding='utf-8') as f:
-    #     json.dump(merged_data, f, indent=4, ensure_ascii=False)
-
-# 查找最近的点云文件
-def find_nearest_pointcloud(timestamp, pointcloud_files):
-    """
-    根据时间戳查找最近的点云文件。
-    :param timestamp: 标注文件的时间戳（整数或字符串）
-    :param pointcloud_files: 点云文件列表（Path 对象）
-    :return: 最近的点云文件路径（字符串）
-    """
-    timestamp = int(timestamp)  # 确保时间戳是整数
-    # 提取点云文件的时间戳
-    pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
-    # 计算时间戳差值
-    diffs = np.abs(np.array(pointcloud_timestamps) - timestamp)
-    # 找到最小差值的索引
-    nearest_index = np.argmin(diffs)
-    return str(pointcloud_files[nearest_index])
-
-
-# 查找点云文件
-def find_pointclouds(timestamp:str, lidar_folders:dict)->dict:
-    """
-    根据时间戳在六个文件夹中查找对应的点云文件。
-    :param timestamp: 标注文件的时间戳（字符串）
-    :param lidar_folders: 六个激光雷达的文件夹名称列表
-    :param corage_data_path: 点云文件根目录
-    :return: 一个字典，键为雷达名称，值为点云文件路径（如果文件不存在，则用 null 表示）
-    """
-    pointcloud_dict = {}
-    for lidar_name in lidar_folders:
-        pointcloud_files = list(lidar_folders[lidar_name].glob('*.bin'))  # 假设点云文件是 .pcd 格式
-        pointcloud_file=find_nearest_pointcloud(timestamp,pointcloud_files)
-        pointcloud_dict[lidar_name] = str(pointcloud_file)
-    return pointcloud_dict
-
-# 生成 token 的工具函数
-def generate_token():
-    import uuid
-    return str(uuid.uuid4())
-
-
-
-
-def create_kl_infos(version, data_path, save_path, max_sweeps=10, with_cam=False):
+def create_kl_infos(version, data_path, save_path,with_cam=False):
+    from . import kl_utils
     data_path = data_path / version
     save_path = save_path / version
     corage_path=data_path/'corage'
@@ -376,26 +287,37 @@ def create_kl_infos(version, data_path, save_path, max_sweeps=10, with_cam=False
         'bp_rear_left':corage_data_lidar_dir/'bp_rear_left',
         'bp_rear_right':corage_data_lidar_dir/'bp_rear_right'}
     
-    split_label(corage_labal_path,save_path)
+    #将json文件按照比例，分成训练集、验证集和测试集
+    split_files=split_label(corage_labal_path,save_path)
 
-    # 定义输出文件路径
-    output_files = {
-        'train': data_path / 'train.pkl',
-        'val': data_path / 'val.pkl',
-        'test': data_path / 'test.pkl'
-    }
+    # 得到训练集、验证集和测试集的标注信息
+    train_kl_infos,val_kl_infos=kl_utils.fill_trainval_infos(data_path,split_files,sensor_folders=sensor_folders)
 
 
-    # 合并 train、val、test 目录下的文件
-    for split, output_file in output_files.items():
-        input_dir = data_path / split
-        if input_dir.exists():  # 检查目录是否存在
-            merged_data=merge_json_files(input_dir, output_file,sensor_folders)
-            with open(output_file, 'wb') as f:
-                pickle.dump(merged_data, f)
-                print(f"{split} 目录下的文件已合并到 {output_file}")
-        else:
-            print(f"目录不存在: {input_dir}")
+    if version == 'v1.0-test':
+        print('test sample: %d' % len(train_kl_infos))
+        with open(save_path / f'kl_infos_test.pkl', 'wb') as f:
+            pickle.dump(train_kl_infos, f)
+    else:
+        print('train sample: %d, val sample: %d' % (len(train_kl_infos), len(val_kl_infos)))
+        with open(save_path / f'kl_infos_train.pkl', 'wb') as f:
+            pickle.dump(train_kl_infos, f)
+        with open(save_path / f'kl_infos_val.pkl', 'wb') as f:
+            pickle.dump(val_kl_infos, f)
+
+
+
+
+    # # 合并 train、val、test 目录下的文件
+    # for split, output_file in output_files.items():
+    #     input_dir = data_path / split
+    #     if input_dir.exists():  # 检查目录是否存在
+    #         merged_data=merge_json_files(input_dir, output_file,sensor_folders)
+    #         with open(output_file, 'wb') as f:
+    #             pickle.dump(merged_data, f)
+    #             print(f"{split} 目录下的文件已合并到 {output_file}")
+    #     else:
+    #         print(f"目录不存在: {input_dir}")
 
 
 if __name__ == '__main__':
