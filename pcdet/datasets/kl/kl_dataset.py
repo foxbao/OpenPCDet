@@ -11,6 +11,9 @@ import shutil
 from ..dataset import DatasetTemplate
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from scipy.spatial.transform import Rotation as R
+from .kl_dataset_utils import fill_trainval_infos
+# from .kl_dataset_utils import find_multi_sensor_data
+from .kl import KL
 # print(__name__)
 # print(__package__)
 class KLDataset(DatasetTemplate):
@@ -25,15 +28,15 @@ class KLDataset(DatasetTemplate):
         else:
             self.use_camera = False
         self.include_kl_data(self.mode)
-        self.lidar_extrinsic=[
-            7.336647033691406,  # Tx
-            1.4024821519851685,  # Ty
-            -0.07428044080734253,  # Tz
-            0.0009888865918614663,  # qx
-            0.004264600754721424,   # qy
-            0.3800393157007753,     # qz
-            0.9249599741639623      # qw
-        ]
+        # self.lidar_extrinsic=[
+        #     7.336647033691406,  # Tx
+        #     1.4024821519851685,  # Ty
+        #     -0.07428044080734253,  # Tz
+        #     0.0009888865918614663,  # qx
+        #     0.004264600754721424,   # qy
+        #     0.3800393157007753,     # qz
+        #     0.9249599741639623      # qw
+        # ]
 
     def include_kl_data(self, mode):
         self.logger.info('Loading KL dataset')
@@ -50,9 +53,9 @@ class KLDataset(DatasetTemplate):
         self.infos.extend(kl_infos)
         self.logger.info('Total samples for KL dataset: %d' % (len(kl_infos)))
 
-    def get_lidar(self, index):
+    def get_lidar(self, index,lidar_name='helios_front_left'):
         info = self.infos[index]
-        lidar_path = self.root_path / info['helios_front_left']
+        lidar_path = self.root_path / info['lidars'][lidar_name]
 
         points=read_bin(lidar_path)
         times = np.zeros((points.shape[0], 1))
@@ -72,10 +75,11 @@ class KLDataset(DatasetTemplate):
 
         info = copy.deepcopy(self.infos[index])
         points = self.get_lidar(index)
-        points=self.transform_points(points, self.lidar_extrinsic)
+        lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
+        points=self.transform_points(points, lidar_extrinsic)
         input_dict = {
             'points': points,
-            'frame_id': Path(info['helios_front_left']).stem,
+            'frame_id': Path(info['lidars']['helios_front_left']).stem,
             'metadata': {'token': info['token']}
         }
 
@@ -105,7 +109,33 @@ class KLDataset(DatasetTemplate):
         return data_dict
     
     def evaluation(self, det_annos, class_names, **kwargs):
-        raise NotImplementedError
+        if 'annos' not in self.infos[0].keys():
+            return 'No ground-truth boxes for evaluation', {}
+
+        def kitti_eval(eval_det_annos, eval_gt_annos, map_name_to_kitti):
+            from ..kitti.kitti_object_eval_python import eval as kitti_eval
+            from ..kitti import kitti_utils
+
+            kitti_utils.transform_annotations_to_kitti_format(eval_det_annos, map_name_to_kitti=map_name_to_kitti)
+            kitti_utils.transform_annotations_to_kitti_format(
+                eval_gt_annos, map_name_to_kitti=map_name_to_kitti,
+                info_with_fakelidar=self.dataset_cfg.get('INFO_WITH_FAKELIDAR', False)
+            )
+            kitti_class_names = [map_name_to_kitti[x] for x in class_names]
+            ap_result_str, ap_dict = kitti_eval.get_official_eval_result(
+                gt_annos=eval_gt_annos, dt_annos=eval_det_annos, current_classes=kitti_class_names
+            )
+            return ap_result_str, ap_dict
+
+        eval_det_annos = copy.deepcopy(det_annos)
+        eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.custom_infos]
+
+        if kwargs['eval_metric'] == 'kitti':
+            ap_result_str, ap_dict = kitti_eval(eval_det_annos, eval_gt_annos, self.map_class_to_kitti)
+        else:
+            raise NotImplementedError
+
+        return ap_result_str, ap_dict
     
     def transform_points(self,point_cloud, extrinsic):
         # 提取平移向量
@@ -137,8 +167,9 @@ class KLDataset(DatasetTemplate):
             sample_idx = idx
             info = self.infos[idx]
             points = self.get_lidar(idx)
-
-            points= self.transform_points(points, self.lidar_extrinsic)
+            
+            lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
+            points= self.transform_points(points, lidar_extrinsic)
             gt_boxes = info['gt_boxes']
             gt_names = info['gt_names']
 
@@ -269,55 +300,42 @@ def split_label(label_dir,save_dir):
         print(f"{split} 目录已创建，复制了 {len(files)} 个文件")
     return split_files
 
+
+def split_samples(samples):
+    total_files = len(samples)
+    train_size = int(total_files * 0.8)
+    val_size = int(total_files * 0.1)
+    split_samples = {
+        'train': samples[:train_size],
+        'val': samples[train_size:train_size + val_size],
+        'test': samples[train_size + val_size:]
+    }
+    train_samples=split_samples['train']
+    val_scenes=split_samples['val']
+    return train_samples,val_scenes
+
+
 def create_kl_infos(version, data_path, save_path,with_cam=False):
-    from . import kl_utils
-    data_path = data_path / version
-    save_path = save_path / version
-    corage_path=data_path/'corage'
-    corage_labal_path=corage_path/'s7'/'igv_1114_rain_01-century02'
-    corage_data_lidar_dir=corage_path/'training_s7'/'igv_1114_rain_01-century02'/'lidar'
-    corage_data_camera_dir=corage_path/'training_s7'/'igv_1114_rain_01-century02'/'camera'
-    corage_data_localization_dir=corage_path/'training_s7'/'igv_1114_rain_01-century02'/'localization'
+    from . import kl_dataset_utils
+    kl = KL(version=version, dataroot=data_path, verbose=True)
+    samples=kl.get_all_sample()
 
-    sensor_folders={
-        'helios_front_left':corage_data_lidar_dir/'helios_front_left',
-        'helios_rear_right':corage_data_lidar_dir/'helios_rear_right',
-        'bp_front_left':corage_data_lidar_dir/'bp_front_left',
-        'bp_front_right':corage_data_lidar_dir/'bp_front_right',
-        'bp_rear_left':corage_data_lidar_dir/'bp_rear_left',
-        'bp_rear_right':corage_data_lidar_dir/'bp_rear_right'}
+    train_samples,val_samples=split_samples(samples)
+    train_samples = {d['token'] for d in train_samples}
+    val_samples = {d['token'] for d in val_samples}
     
-    #将json文件按照比例，分成训练集、验证集和测试集
-    split_files=split_label(corage_labal_path,save_path)
-
-    # 得到训练集、验证集和测试集的标注信息
-    train_kl_infos,val_kl_infos=kl_utils.fill_trainval_infos(data_path,split_files,sensor_folders=sensor_folders)
-
+    train_kl_infos,val_kl_infos=kl_dataset_utils.fill_trainval_infos(kl,train_samples,val_samples)
 
     if version == 'v1.0-test':
         print('test sample: %d' % len(train_kl_infos))
-        with open(save_path / f'kl_infos_test.pkl', 'wb') as f:
+        with open(save_path /version/ f'kl_infos_test.pkl', 'wb') as f:
             pickle.dump(train_kl_infos, f)
     else:
         print('train sample: %d, val sample: %d' % (len(train_kl_infos), len(val_kl_infos)))
-        with open(save_path / f'kl_infos_train.pkl', 'wb') as f:
+        with open(save_path /version/ f'kl_infos_train.pkl', 'wb') as f:
             pickle.dump(train_kl_infos, f)
-        with open(save_path / f'kl_infos_val.pkl', 'wb') as f:
+        with open(save_path /version/ f'kl_infos_val.pkl', 'wb') as f:
             pickle.dump(val_kl_infos, f)
-
-
-
-
-    # # 合并 train、val、test 目录下的文件
-    # for split, output_file in output_files.items():
-    #     input_dir = data_path / split
-    #     if input_dir.exists():  # 检查目录是否存在
-    #         merged_data=merge_json_files(input_dir, output_file,sensor_folders)
-    #         with open(output_file, 'wb') as f:
-    #             pickle.dump(merged_data, f)
-    #             print(f"{split} 目录下的文件已合并到 {output_file}")
-    #     else:
-    #         print(f"目录不存在: {input_dir}")
 
 
 if __name__ == '__main__':

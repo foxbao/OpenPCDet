@@ -146,7 +146,7 @@
 # #         with open(json_file, 'r', encoding='utf-8') as f:
 # #             data = json.load(f)
         
-# #         pointcloud_dict=find_pointclouds(timestamp, sensor_folders)
+# #         lidars=find_pointclouds(timestamp, sensor_folders)
 
 # #         gt_boxes,gt_names,gt_subtypes,gt_boxes_token=convert_json_to_gt(data)
 # #         # 为每个样本添加 timestamp、token 和 pointcloud_path
@@ -159,7 +159,7 @@
 # #             'gt_subtypes':gt_subtypes,
 # #             'gt_boxes_token':gt_boxes_token
 # #         }
-# #         sample.update(pointcloud_dict)
+# #         sample.update(lidars)
         
 # #         # 添加到合并后的数据中
 # #         merged_data.append(sample)
@@ -195,12 +195,12 @@
 # #     :param corage_data_path: 点云文件根目录
 # #     :return: 一个字典，键为雷达名称，值为点云文件路径（如果文件不存在，则用 null 表示）
 # #     """
-# #     pointcloud_dict = {}
+# #     lidars = {}
 # #     for lidar_name in lidar_folders:
 # #         pointcloud_files = list(lidar_folders[lidar_name].glob('*.bin'))  # 假设点云文件是 .pcd 格式
 # #         pointcloud_file=find_nearest_pointcloud(timestamp,pointcloud_files)
-# #         pointcloud_dict[lidar_name] = str(pointcloud_file)
-# #     return pointcloud_dict
+# #         lidars[lidar_name] = str(pointcloud_file)
+# #     return lidars
 
 # # # 生成 token 的工具函数
 # # def generate_token():

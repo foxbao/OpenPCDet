@@ -3,17 +3,6 @@ from pcdet.datasets.nuscenes.nuscenes_dataset import create_nuscenes_info
 from pcdet.utils import common_utils
 
 
-
-
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
     import yaml
     import argparse
