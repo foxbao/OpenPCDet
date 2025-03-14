@@ -177,25 +177,25 @@ def obtain_sensor2top(
     sweep["sensor2lidar_translation"] = T
     return sweep
 
-# 查找最近的点云文件
-def find_nearest_pointcloud(timestamp, pointcloud_files, pointcloud_timestamps=None):
-    """
-    根据时间戳查找最近的点云文件。
-    :param timestamp: 标注文件的时间戳（整数或字符串）
-    :param pointcloud_files: 点云文件列表（Path 对象）
-    :param pointcloud_timestamps: 预计算的时间戳列表（可选）
-    :return: 最近的点云文件路径（字符串）
-    """
-    timestamp = int(timestamp)  # 确保时间戳是整数
+# # 查找最近的点云文件
+# def find_nearest_pointcloud(timestamp, pointcloud_files, pointcloud_timestamps=None):
+#     """
+#     根据时间戳查找最近的点云文件。
+#     :param timestamp: 标注文件的时间戳（整数或字符串）
+#     :param pointcloud_files: 点云文件列表（Path 对象）
+#     :param pointcloud_timestamps: 预计算的时间戳列表（可选）
+#     :return: 最近的点云文件路径（字符串）
+#     """
+#     timestamp = int(timestamp)  # 确保时间戳是整数
 
-    # 如果没有预计算时间戳，则实时计算
-    if pointcloud_timestamps is None:
-        pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
+#     # 如果没有预计算时间戳，则实时计算
+#     if pointcloud_timestamps is None:
+#         pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
 
-    # 使用 NumPy 计算最小差值
-    diffs = np.abs(np.array(pointcloud_timestamps) - timestamp)
-    nearest_index = np.argmin(diffs)
-    return str(pointcloud_files[nearest_index])
+#     # 使用 NumPy 计算最小差值
+#     diffs = np.abs(np.array(pointcloud_timestamps) - timestamp)
+#     nearest_index = np.argmin(diffs)
+#     return str(pointcloud_files[nearest_index])
 
 
 def quaternion_to_yaw(rotation)->float:
@@ -227,6 +227,7 @@ def convert_json_to_gt(annotations:List[dict]):
     gt_names=[]
     gt_subtype=[]
     gt_boxes_token=[]
+    gt_track_ids=[]
     for data in annotations:
         gt_boxes.append(convert_to_gt_boxes_7dof(data['xyz'],data['lwh'],data['rotation']))
         if data['label']=='Vehicle':
@@ -235,11 +236,13 @@ def convert_json_to_gt(annotations:List[dict]):
             gt_names.append(data['label'])
         gt_subtype.append(data['subtype'])
         gt_boxes_token.append(data['track_id'])
+        gt_track_ids.append(data['track_id'])
     gt_boxes = np.vstack(gt_boxes)
     gt_names = np.array(gt_names)
     gt_subtype= np.array(gt_subtype)
     gt_boxes_token = np.array(gt_boxes_token)
-    return gt_boxes,gt_names,gt_subtype,gt_boxes_token
+    gt_track_ids = np.array(gt_track_ids)
+    return gt_boxes,gt_names,gt_subtype,gt_boxes_token,gt_track_ids
 
 
 def fill_trainval_infos(kl:KL,train_samples,val_samples):
@@ -250,10 +253,14 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples):
         progress_bar.update()
         with open(sample['label'], 'r', encoding='utf-8') as f:
             data = json.load(f)
-        gt_boxes,gt_names,gt_subtypes,gt_boxes_token=convert_json_to_gt(data)
+        gt_boxes,gt_names,gt_subtypes,gt_boxes_token,gt_track_ids=convert_json_to_gt(data)
 
         with open(sample['extrinsics_path'], 'r', encoding='utf-8') as f:
             extrinsice_data = json.load(f)
+        with open(sample['intrinsics_path'], 'r', encoding='utf-8') as f:
+            intrinsice_data = json.load(f)
+        with open(sample['localization'], 'r', encoding='utf-8') as f:
+            state=json.load(f)
         # 为每个样本添加 timestamp、token 和 pointcloud_path
         info = {
             'token': sample['token'],
@@ -263,8 +270,13 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples):
             'gt_names':gt_names,
             'gt_subtypes':gt_subtypes,
             'gt_boxes_token':gt_boxes_token,
+            'gt_track_ids':gt_track_ids,
             'lidars': sample['lidars'],
-            'sensor_extrinsics': extrinsice_data
+            'cameras': sample['cameras'],
+            'localization': sample['localization'],
+            'state':state,
+            'sensor_extrinsics': extrinsice_data,
+            'sensor_intrinsics': intrinsice_data
         }
 
         # gt_boxes增加速度

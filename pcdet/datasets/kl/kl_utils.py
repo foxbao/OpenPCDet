@@ -18,24 +18,24 @@ def precompute_timestamps(pointcloud_files):
 
 
 # 查找最近的点云文件
-def find_nearest_pointcloud(timestamp, pointcloud_files, pointcloud_timestamps=None):
+def find_nearest_data(timestamp, data_files, data_timestamps=None):
     """
-    根据时间戳查找最近的点云文件。
+    根据时间戳查找最近的传感器文件。
     :param timestamp: 标注文件的时间戳（整数或字符串）
-    :param pointcloud_files: 点云文件列表（Path 对象）
-    :param pointcloud_timestamps: 预计算的时间戳列表（可选）
-    :return: 最近的点云文件路径（字符串）
+    :param data_files: 传感器文件列表（Path 对象）
+    :param data_timestamps: 预计算的时间戳列表（可选）
+    :return: 最近的传感器文件路径（字符串）
     """
     timestamp = int(timestamp)  # 确保时间戳是整数
 
     # 如果没有预计算时间戳，则实时计算
-    if pointcloud_timestamps is None:
-        pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
+    if data_timestamps is None:
+        data_timestamps = [int(f.stem) for f in data_files]
 
     # 使用 NumPy 计算最小差值
-    diffs = np.abs(np.array(pointcloud_timestamps) - timestamp)
+    diffs = np.abs(np.array(data_timestamps) - timestamp)
     nearest_index = np.argmin(diffs)
-    return str(pointcloud_files[nearest_index])
+    return str(data_files[nearest_index])
 
 # 使用二分查找优化
 def find_nearest_pointcloud_bisect(timestamp, pointcloud_files, pointcloud_timestamps=None):
@@ -67,16 +67,18 @@ def find_nearest_pointcloud_bisect(timestamp, pointcloud_files, pointcloud_times
 
     return str(pointcloud_files[nearest_index])
 
-def find_multi_sensor_data(timestamp:str, multi_sensor_files:dict,multi_sensor_timestamps)->dict:
+
+def match_sensor_data(timestamp:str,sensor_files,sensor_timestamps):
+    timestamp = int(timestamp)
+    return find_nearest_data(timestamp, sensor_files, sensor_timestamps)
+
+def match_multi_sensor_data(timestamp:str, multi_sensor_files:dict,multi_sensor_timestamps)->dict:
     data_dict = {}
     timestamp = int(timestamp)  # 确保时间戳是整数
 
     for sensor_name in multi_sensor_files:
         sensor_files=multi_sensor_files[sensor_name]
         sensor_timestamps=multi_sensor_timestamps[sensor_name]
-        nearest_file = find_nearest_pointcloud(timestamp, sensor_files, sensor_timestamps)
-
-        # sensor_file=find_nearest_pointcloud(timestamp,sensor_files)
-        # sensor_file=find_nearest_pointcloud_bisect(timestamp,sensor_files)
+        nearest_file = find_nearest_data(timestamp, sensor_files, sensor_timestamps)
         data_dict[sensor_name] = str(nearest_file)
     return data_dict

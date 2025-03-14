@@ -1,6 +1,7 @@
 import os
 import time
-from .kl_utils import precompute_timestamps,find_multi_sensor_data,generate_token
+from .kl_utils import precompute_timestamps,match_multi_sensor_data,generate_token,match_sensor_data
+from pathlib import Path
 class KL():
     #nusc = NuScenes(version=self.dataset_cfg.VERSION, dataroot=str(self.root_path), verbose=True)
     def __init__(self,
@@ -20,11 +21,21 @@ class KL():
             'bp_front_right':'bp_front_right',
             'bp_rear_left':'bp_rear_left',
             'bp_rear_right':'bp_rear_right'}
+        self.camera_names={
+            'h100f1a_front_left':'h100f1a_front_left',
+            'h100f1a_rear_right':'h100f1a_rear_right',
+            'h120ua_front_left':'h120ua_front_left',
+            'h120ua_front_mid':'h120ua_front_mid',
+            'h120ua_front_right':'h120ua_front_right',
+            'h120ua_rear_left':'h120ua_rear_left',
+            'h120ua_rear_mid':'h120ua_rear_mid',
+            'h120ua_rear_right':'h120ua_rear_right',
+        }
         self.samples=[]
         start_time = time.time()
         if verbose:
-            print("======\nLoading NuScenes tables for version {}...".format(self.version))
-        self.generate_sample()
+            print("======\nLoading KL tables for version {}...".format(self.version))
+        self.load_data()
 
 
         if verbose:
@@ -32,7 +43,7 @@ class KL():
             #     print("{} {},".format(len(getattr(self, table)), table))
             print("Done loading in {:.3f} seconds.\n======".format(time.time() - start_time))
     
-    def generate_sample(self):
+    def load_data(self):
         for s_dir in os.listdir(self.label_dir):
             label_s_path = self.label_dir/s_dir  # label/s7
             sample_s_path = self.sample_dir/s_dir  # sample/s7
@@ -43,6 +54,8 @@ class KL():
                 for scenario_dir in os.listdir(label_s_path):
                     label_scenario_path = label_s_path/scenario_dir  # label/s7/igv_1114_rain_01-century02
                     sample_lidar_path = sample_s_path/scenario_dir/'lidar'  # sample/s7/igv_1114_rain_01-century02/lidar
+                    sample_localization_path=sample_s_path/scenario_dir/'localization'
+                    sample_camera_path=sample_s_path/scenario_dir/'camera'
                     extrinsics_path = sample_s_path/scenario_dir/'extrinsics.json' if (sample_s_path/scenario_dir/'extrinsics.json').exists() else None
                     intrinsics_path = sample_s_path/scenario_dir/'intrinsics.json' if (sample_s_path/scenario_dir/'intrinsics.json').exists() else None
                     # 检查 label 下的场景目录label/s7/igv_1114_rain_01-century02是否存在，并且是一个目录
@@ -50,11 +63,22 @@ class KL():
                         # 对于每个lidar目录，预先计算好时间，便于二分查找加速
                         sensor_files={}
                         sensor_timestamps={}
-                        for sensor_name in self.sensor_names:
-                            sensor_file=list((sample_lidar_path/sensor_name).glob('*.bin'))
-                            sensor_timestamp=precompute_timestamps(sensor_file)
-                            sensor_files[sensor_name]=sensor_file
-                            sensor_timestamps[sensor_name]=sensor_timestamp
+                        for name in self.sensor_names:
+                            cur_files=list((sample_lidar_path/name).glob('*.bin'))
+                            cur_timestamps=precompute_timestamps(cur_files)
+                            sensor_files[name]=cur_files
+                            sensor_timestamps[name]=cur_timestamps
+                        
+                        camera_files={}
+                        camera_timestamps={}
+                        for name in self.camera_names:
+                            cur_files=list((sample_camera_path/name).glob('*.jpeg'))
+                            cur_timestamps=precompute_timestamps(cur_files)
+                            camera_files[name]=cur_files
+                            camera_timestamps[name]=cur_timestamps
+                        
+                        localization_files=list((sample_localization_path).glob('*.json'))
+                        localization_times=precompute_timestamps(localization_files)
                         # 遍历 label 场景目录下的 JSON 文件
                         for json_file in os.listdir(label_scenario_path):
                             if json_file.endswith('.json'):
@@ -62,22 +86,25 @@ class KL():
                                 # 构建 JSON 文件的完整路径
                                 json_path = label_scenario_path/json_file
                                 timestamp=os.path.splitext(json_file)[0]
-                                matched_lidars=find_multi_sensor_data(timestamp, sensor_files,sensor_timestamps)
+                                matched_lidars=match_multi_sensor_data(timestamp, sensor_files,sensor_timestamps)
+                                matched_cameras=match_multi_sensor_data(timestamp, camera_files,camera_timestamps)
+                                matched_localization=Path(match_sensor_data(timestamp, localization_files,localization_times))
                                 sample['token']=generate_token()
                                 sample['label']=json_path
                                 sample['lidars']=matched_lidars
+                                sample['cameras']=matched_cameras
+                                sample['localization']=matched_localization
                                 sample['timestamp']=timestamp
                                 sample['extrinsics_path']=extrinsics_path
                                 sample['intrinsics_path']=intrinsics_path
                                 self.samples.append(sample)
                                 # 构建对应的 bin 文件名
+        aaa=1
     
     def get_all_sample(self):
         return self.samples
+    
 
-    # def compute(self):
-    #     # compute KL divergence between x and y
-    #     pass
 
 if __name__ == '__main__':
     kl = KL(version='v1.0-trainval', dataroot='../data/kl', verbose=True)

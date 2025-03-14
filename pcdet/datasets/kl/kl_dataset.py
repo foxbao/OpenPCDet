@@ -12,7 +12,6 @@ from ..dataset import DatasetTemplate
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from scipy.spatial.transform import Rotation as R
 from .kl_dataset_utils import fill_trainval_infos
-# from .kl_dataset_utils import find_multi_sensor_data
 from .kl import KL
 # print(__name__)
 # print(__package__)
@@ -28,15 +27,6 @@ class KLDataset(DatasetTemplate):
         else:
             self.use_camera = False
         self.include_kl_data(self.mode)
-        # self.lidar_extrinsic=[
-        #     7.336647033691406,  # Tx
-        #     1.4024821519851685,  # Ty
-        #     -0.07428044080734253,  # Tz
-        #     0.0009888865918614663,  # qx
-        #     0.004264600754721424,   # qy
-        #     0.3800393157007753,     # qz
-        #     0.9249599741639623      # qw
-        # ]
 
     def include_kl_data(self, mode):
         self.logger.info('Loading KL dataset')
@@ -53,6 +43,12 @@ class KLDataset(DatasetTemplate):
         self.infos.extend(kl_infos)
         self.logger.info('Total samples for KL dataset: %d' % (len(kl_infos)))
 
+
+    def get_merged_lidar(self,index):
+        info = self.infos[index]
+        
+        pass
+    
     def get_lidar(self, index,lidar_name='helios_front_left'):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidars'][lidar_name]
@@ -167,9 +163,9 @@ class KLDataset(DatasetTemplate):
             sample_idx = idx
             info = self.infos[idx]
             points = self.get_lidar(idx)
-            
             lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
             points= self.transform_points(points, lidar_extrinsic)
+            
             gt_boxes = info['gt_boxes']
             gt_names = info['gt_names']
 
@@ -209,7 +205,6 @@ def bin_to_pcd(bin_file, pcd_file):
         ('x', np.float32),  # 4 bytes
         ('y', np.float32),  # 4 bytes
         ('z', np.float32),  # 4 bytes
-
         ('intensity',np.float32),
         ('ring',np.float32),
         ('timestamp_2us',np.float32),
@@ -263,42 +258,29 @@ def save_pcd_as_bin(pcd_file, bin_file):
     # 将过滤后的点云数据保存为 .bin 文件
     valid_points.tofile(bin_file)
 
-def generate_infos(dataset_root_dir, dataset_save_dir, split):
-    """生成 infos 文件"""
-    import glob
-    data_dir=dataset_root_dir/split
-    save_dir=dataset_save_dir/split
-    infos = []
-    bin_files = list(data_dir.rglob('*.bin'))
-    # pcd_files = glob.glob(os.path.join(root_dir, split, '*.bin'))
-    for idx,bin_file in enumerate(bin_files):
-        
-        base = os.path.basename(bin_file)
-        pcd_file = os.path.join(save_dir, base.replace('.bin', '.pcd'))
-        bin_to_pcd(bin_file, pcd_file)
 
-def split_label(label_dir,save_dir):
-    json_files = list(label_dir.glob('*.json'))
-    total_files = len(json_files)
-    train_size = int(total_files * 0.8)
-    val_size = int(total_files * 0.1)
-    split_files = {
-        'train': json_files[:train_size],
-        'val': json_files[train_size:train_size + val_size],
-        'test': json_files[train_size + val_size:]
-    }
+# def split_label(label_dir,save_dir):
+#     json_files = list(label_dir.glob('*.json'))
+#     total_files = len(json_files)
+#     train_size = int(total_files * 0.8)
+#     val_size = int(total_files * 0.1)
+#     split_files = {
+#         'train': json_files[:train_size],
+#         'val': json_files[train_size:train_size + val_size],
+#         'test': json_files[train_size + val_size:]
+#     }
 
-    # 创建目录并复制文件
-    for split, files in split_files.items():
-        # 创建目录
-        split_dir = save_dir / split
-        split_dir.mkdir(exist_ok=True)
+#     # 创建目录并复制文件
+#     for split, files in split_files.items():
+#         # 创建目录
+#         split_dir = save_dir / split
+#         split_dir.mkdir(exist_ok=True)
 
-        # 复制文件
-        for file in files:
-            shutil.copy(file, split_dir / file.name)
-        print(f"{split} 目录已创建，复制了 {len(files)} 个文件")
-    return split_files
+#         # 复制文件
+#         for file in files:
+#             shutil.copy(file, split_dir / file.name)
+#         print(f"{split} 目录已创建，复制了 {len(files)} 个文件")
+#     return split_files
 
 
 def split_samples(samples):
