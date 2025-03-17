@@ -18,10 +18,10 @@ if __name__ == '__main__':
 
     if args.func == 'create_kl_infos':
         dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
-        dataset_cfg.version=args.version
+        dataset_cfg.VERSION=args.version
         ROOT_DIR = (Path(__file__).resolve().parent / '../').resolve()
         data_path=ROOT_DIR / 'data' / 'kl'
-        create_kl_infos(dataset_cfg.version, data_path, data_path,with_cam=args.with_cam)
+        create_kl_infos(dataset_cfg.VERSION, data_path, data_path,with_cam=args.with_cam)
 
         kl_dataset = KLDataset(
             dataset_cfg=dataset_cfg, class_names=None,
