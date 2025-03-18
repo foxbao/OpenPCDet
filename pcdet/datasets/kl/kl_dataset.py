@@ -15,6 +15,74 @@ from .kl_dataset_utils import fill_trainval_infos
 from .kl import KL
 # print(__name__)
 # print(__package__)
+
+
+def save_point_cloud_to_pcd(points, output_path):
+    """
+    将点云数据保存为 .pcd 文件
+    :param points: 点云数据，形状为 (N, 3) 或 (N, 4)
+    :param output_path: 输出 .pcd 文件的路径
+    """
+    # 创建 Open3D 点云对象
+    pcd = o3d.geometry.PointCloud()
+
+    # 设置点云的点数据（只取 x, y, z）
+    pcd.points = o3d.utility.Vector3dVector(points[:, :3])
+
+    # 如果有强度信息（第 4 列），可以将其添加到点云中
+    if points.shape[1] >= 4:
+        intensities = points[:, 3]  # 强度信息
+        pcd.colors = o3d.utility.Vector3dVector(np.tile(intensities[:, np.newaxis], (1, 3)))  # 将强度映射到 RGB
+
+    # 保存为 .pcd 文件
+    o3d.io.write_point_cloud(output_path, pcd)
+    print(f"点云已保存到 {output_path}")
+
+def create_oriented_bbox_from_array(bbox_array):
+    """
+    从长度为 7 的数组创建带方向的 3D 边界框
+    :param bbox_array: 长度为 7 的数组，格式为 [center_x, center_y, center_z, size_x, size_y, size_z, yaw]
+    :return: open3d.geometry.OrientedBoundingBox 对象
+    """
+    # 解析数组
+    center = bbox_array[:3]  # 前 3 个元素是中心点
+    size = bbox_array[3:6]   # 中间 3 个元素是尺寸
+    yaw = bbox_array[6]      # 最后一个元素是 yaw 角（弧度）
+
+    # 创建旋转矩阵（绕 z 轴旋转 yaw 角）
+    rotation_matrix = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw), np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+    
+    # 创建带方向的边界框
+    bbox = o3d.geometry.OrientedBoundingBox(center, rotation_matrix, size)
+    bbox.color = [1, 0, 0]  # 设置边界框颜色为红色
+    return bbox
+
+def visualize_point_cloud_with_bboxes(points, bboxes):
+    """
+    可视化点云和多个边界框
+    :param points: 点云数据，形状为 (N, 5)，其中前 3 维是 x, y, z 坐标
+    :param bboxes: 边界框列表，每个边界框是一个长度为 7 的数组，格式为 [center_x, center_y, center_z, size_x, size_y, size_z, yaw]
+    """
+    # 提取 x, y, z 坐标
+    xyz_points = points[:, :3]
+
+    # 创建点云对象
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(xyz_points)
+
+    # 创建边界框对象
+    bbox_objects = []
+    for bbox_array in bboxes:
+        bbox = create_oriented_bbox_from_array(bbox_array)
+        bbox_objects.append(bbox)
+
+    # 可视化点云和边界框
+    o3d.visualization.draw_geometries([pcd] + bbox_objects)
+
 class KLDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
@@ -44,10 +112,32 @@ class KLDataset(DatasetTemplate):
         self.logger.info('Total samples for KL dataset: %d' % (len(kl_infos)))
 
 
-    def get_merged_lidar(self,index):
-        info = self.infos[index]
+    def get_merged_lidar(self,index,use_extrinsic=True)->np.ndarray:
         
-        pass
+        point_clouds = []
+        info = self.infos[index]
+        # lidar_names=['helios_front_left','helios_rear_right']
+        # lidar_extrinsic_names=['Tx_baselink_lidar_helios_front_left','Tx_baselink_lidar_helios_rear_right']
+
+        lidar_configurations=[]
+        lidar_configurations.append({"lidar_name": "helios_front_left","lidar_extrinsic_name": "Tx_baselink_lidar_helios_front_left"})
+        lidar_configurations.append({"lidar_name": "helios_rear_right","lidar_extrinsic_name": "Tx_baselink_lidar_helios_rear_right"})
+        
+        for config in lidar_configurations:
+            lidar_name=config['lidar_name']
+            lidar_extrinsic_name=config['lidar_extrinsic_name']
+            lidar_path = self.root_path / info['lidars'][lidar_name]
+            points=read_bin(lidar_path)
+            times = np.zeros((points.shape[0], 1))
+            points = np.concatenate((points, times), axis=1)
+            if use_extrinsic:
+                lidar_extrinsic=info['sensor_extrinsics'][lidar_extrinsic_name]
+                points=self.transform_points(points, lidar_extrinsic)
+            point_clouds.append(points)
+                
+        if point_clouds:  # 如果列表不为空
+            merged_point_cloud = np.concatenate(point_clouds, axis=0)
+        return merged_point_cloud
     
     def get_lidar(self, index,lidar_name='helios_front_left'):
         info = self.infos[index]
@@ -65,12 +155,20 @@ class KLDataset(DatasetTemplate):
 
         return len(self.infos)
     
+
+    
     def __getitem__(self, index):
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.infos)
 
         info = copy.deepcopy(self.infos[index])
-        points = self.get_lidar(index)
+
+        merged_points=self.get_merged_lidar(index,True)
+        # visualize_point_cloud_with_bboxes(merged_points, info['gt_boxes'])
+        # output_path = "merged_point_cloud.pcd"
+        # save_point_cloud_to_pcd(merged_points, output_path)
+        # points = self.get_lidar(index)
+        points=merged_points
         lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
         points=self.transform_points(points, lidar_extrinsic)
         input_dict = {
@@ -294,7 +392,8 @@ def split_samples(samples):
     }
     train_samples=split_samples['train']
     val_scenes=split_samples['val']
-    return train_samples,val_scenes
+    test_scenes=split_samples['test']
+    return train_samples,val_scenes,test_scenes
 
 
 def create_kl_infos(version, data_path, save_path,with_cam=False):
@@ -302,22 +401,25 @@ def create_kl_infos(version, data_path, save_path,with_cam=False):
     kl = KL(version=version, dataroot=data_path, verbose=True)
     samples=kl.get_all_sample()
 
-    train_samples,val_samples=split_samples(samples)
+    train_samples,val_samples,test_samples=split_samples(samples)
     train_samples = {d['token'] for d in train_samples}
     val_samples = {d['token'] for d in val_samples}
+    test_samples = {d['token'] for d in test_samples}
     
-    train_kl_infos,val_kl_infos=kl_dataset_utils.fill_trainval_infos(kl,train_samples,val_samples)
+    train_kl_infos,val_kl_infos,test_kl_infos=kl_dataset_utils.fill_trainval_infos(kl,train_samples,val_samples,test_samples)
 
     if version == 'v1.0-test':
         print('test sample: %d' % len(train_kl_infos))
         with open(save_path /version/ f'kl_infos_test.pkl', 'wb') as f:
             pickle.dump(train_kl_infos, f)
     else:
-        print('train sample: %d, val sample: %d' % (len(train_kl_infos), len(val_kl_infos)))
+        print('train sample: %d, val sample: %d, test sample: %d' % (len(train_kl_infos), len(val_kl_infos),len(test_kl_infos)))
         with open(save_path /version/ f'kl_infos_train.pkl', 'wb') as f:
             pickle.dump(train_kl_infos, f)
         with open(save_path /version/ f'kl_infos_val.pkl', 'wb') as f:
             pickle.dump(val_kl_infos, f)
+        with open(save_path /version/ f'kl_infos_test.pkl', 'wb') as f:
+            pickle.dump(test_kl_infos, f)
 
 
 if __name__ == '__main__':

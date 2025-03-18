@@ -245,9 +245,10 @@ def convert_json_to_gt(annotations:List[dict]):
     return gt_boxes,gt_names,gt_subtype,gt_boxes_token,gt_track_ids
 
 
-def fill_trainval_infos(kl:KL,train_samples,val_samples):
+def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
     train_kl_infos = []
     val_kl_infos = []
+    test_kl_infos=[]
     progress_bar = tqdm.tqdm(total=len(kl.samples), desc='create_info', dynamic_ncols=True)
     for index, sample in enumerate(kl.samples):
         progress_bar.update()
@@ -288,11 +289,14 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples):
         info['gt_boxes'] = np.concatenate([locs, dims, rots, velocity], axis=1)
         if sample['token'] in train_samples:
             train_kl_infos.append(info)
-        else:
+        elif sample['token'] in val_samples:
             val_kl_infos.append(info)
+        else:
+            test_kl_infos.append(info)
+        
 
     progress_bar.close()
-    return train_kl_infos, val_kl_infos
+    return train_kl_infos, val_kl_infos,test_kl_infos
              
 
 
