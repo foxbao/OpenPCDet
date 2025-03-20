@@ -74,9 +74,12 @@ class DemoDataset(DatasetTemplate):
 
 
 def parse_config():
+    # 创建一个参数解析器
     parser = argparse.ArgumentParser(description='arg parser')
+    # 添加一个参数，指定配置文件
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/second.yaml',
                         help='specify the config for demo')
+    # 添加一个参数，指定点云数据文件或目录
     parser.add_argument('--data_path', type=str, default='000008.bin',
                         help='specify the point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default='pv_rcnn_8369.pth', help='specify the pretrained model')

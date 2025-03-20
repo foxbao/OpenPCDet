@@ -229,11 +229,14 @@ def convert_json_to_gt(annotations:List[dict]):
     gt_boxes_token=[]
     gt_track_ids=[]
     for data in annotations:
-        gt_boxes.append(convert_to_gt_boxes_7dof(data['xyz'],data['lwh'],data['rotation']))
+        if data['label']=='Container':
+            continue
         if data['label']=='Vehicle':
             gt_names.append(data['subtype'])
         else:
             gt_names.append(data['label'])
+        gt_boxes.append(convert_to_gt_boxes_7dof(data['xyz'],data['lwh'],data['rotation']))
+
         gt_subtype.append(data['subtype'])
         gt_boxes_token.append(data['track_id'])
         gt_track_ids.append(data['track_id'])
@@ -418,3 +421,18 @@ def format_nuscene_results(metrics, class_names, version='default'):
     })
 
     return result, details
+
+
+def transform_points(point_cloud, extrinsic):
+    from scipy.spatial.transform import Rotation as R
+    # 提取平移向量
+    translation = np.array(extrinsic[:3])  # [Tx, Ty, Tz]
+
+    # 提取四元数
+    quaternion = np.array(extrinsic[3:])  # [qx, qy, qz, qw]
+    rotation_matrix = R.from_quat(quaternion).as_matrix()
+    positions = point_cloud[:, :3]
+    rotated_positions = np.dot(positions, rotation_matrix.T)
+    transformed_positions = rotated_positions + translation
+    point_cloud[:, :3] = transformed_positions
+    return point_cloud

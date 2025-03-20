@@ -38,10 +38,11 @@ def save_point_cloud_to_pcd(points, output_path):
     o3d.io.write_point_cloud(output_path, pcd)
     print(f"点云已保存到 {output_path}")
 
-def create_oriented_bbox_from_array(bbox_array):
+def create_oriented_bbox_from_array(bbox_array, color=[1,0,0]):
     """
     从长度为 7 的数组创建带方向的 3D 边界框
     :param bbox_array: 长度为 7 的数组，格式为 [center_x, center_y, center_z, size_x, size_y, size_z, yaw]
+    :param color: 边界框颜色，格式为 [R, G, B]，取值范围 [0, 1]
     :return: open3d.geometry.OrientedBoundingBox 对象
     """
     # 解析数组
@@ -58,10 +59,10 @@ def create_oriented_bbox_from_array(bbox_array):
     
     # 创建带方向的边界框
     bbox = o3d.geometry.OrientedBoundingBox(center, rotation_matrix, size)
-    bbox.color = [1, 0, 0]  # 设置边界框颜色为红色
+    bbox.color = color  # 设置边界框颜色
     return bbox
 
-def visualize_point_cloud_with_bboxes(points, bboxes):
+def visualize_point_cloud_with_bboxes(points, bboxes,gt_names):
     """
     可视化点云和多个边界框
     :param points: 点云数据，形状为 (N, 5)，其中前 3 维是 x, y, z 坐标
@@ -73,15 +74,32 @@ def visualize_point_cloud_with_bboxes(points, bboxes):
     # 创建点云对象
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(xyz_points)
+    # 设置点云颜色为统一颜色（例如灰色）
+    uniform_color = [0.0, 0.5, 0.5]  # RGB 颜色，范围 [0, 1]
+    pcd.colors = o3d.utility.Vector3dVector([uniform_color] * len(xyz_points))
+
+    import matplotlib.pyplot as plt
+    class_names = ['Pedestrian','Car', 'IGV-Full', 'Truck', 'Trailer-Empty','Container',
+              'Trailer-Full', 'IGV-Empty','Crane','OtherVehicle', 'Cone',
+                    'ContainerForklift', 'Forklift', 'Lorry', 'ConstructionVehicle']
+    # 创建颜色映射表
+    num_classes = len(class_names)
+    colors = plt.get_cmap("tab20")(np.linspace(0, 1, num_classes))[:, :3]  # 使用 matplotlib 的 colormap
 
     # 创建边界框对象
     bbox_objects = []
-    for bbox_array in bboxes:
-        bbox = create_oriented_bbox_from_array(bbox_array)
+    for bbox_array, gt_name in zip(bboxes, gt_names):
+        # 获取分类索引
+        class_index = class_names.index(gt_name)
+        # 获取对应的颜色
+        color = colors[class_index]
+        # 创建边界框
+        bbox = create_oriented_bbox_from_array(bbox_array, color)
         bbox_objects.append(bbox)
 
     # 可视化点云和边界框
     o3d.visualization.draw_geometries([pcd] + bbox_objects)
+
 
 class KLDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -119,13 +137,19 @@ class KLDataset(DatasetTemplate):
         # lidar_names=['helios_front_left','helios_rear_right']
         # lidar_extrinsic_names=['Tx_baselink_lidar_helios_front_left','Tx_baselink_lidar_helios_rear_right']
 
-        lidar_configurations=[]
-        lidar_configurations.append({"lidar_name": "helios_front_left","lidar_extrinsic_name": "Tx_baselink_lidar_helios_front_left"})
-        lidar_configurations.append({"lidar_name": "helios_rear_right","lidar_extrinsic_name": "Tx_baselink_lidar_helios_rear_right"})
+        extrinsic_names={}
+        extrinsic_names['helios_front_left']='Tx_baselink_lidar_helios_front_left'
+        extrinsic_names['helios_rear_right']='Tx_baselink_lidar_helios_rear_right'
+        # extrinsic_names['bp_front_left']='Tx_baselink_lidar_bp_front_left'
+        # extrinsic_names['bp_front_right']='Tx_baselink_lidar_bp_front_right'
+        # extrinsic_names['bp_rear_left']='Tx_baselink_lidar_bp_rear_left'
+        # extrinsic_names['bp_rear_right']='Tx_baselink_lidar_bp_rear_right'
         
-        for config in lidar_configurations:
-            lidar_name=config['lidar_name']
-            lidar_extrinsic_name=config['lidar_extrinsic_name']
+        # lidar_configurations=[]
+        # lidar_configurations.append({"lidar_name": "helios_front_left","lidar_extrinsic_name": "Tx_baselink_lidar_helios_front_left"})
+        # lidar_configurations.append({"lidar_name": "helios_rear_right","lidar_extrinsic_name": "Tx_baselink_lidar_helios_rear_right"})
+        
+        for lidar_name, lidar_extrinsic_name in extrinsic_names.items():
             lidar_path = self.root_path / info['lidars'][lidar_name]
             points=read_bin(lidar_path)
             times = np.zeros((points.shape[0], 1))
@@ -163,14 +187,14 @@ class KLDataset(DatasetTemplate):
 
         info = copy.deepcopy(self.infos[index])
 
-        merged_points=self.get_merged_lidar(index,True)
-        # visualize_point_cloud_with_bboxes(merged_points, info['gt_boxes'])
+        points=self.get_merged_lidar(index,True)
+        # visualize_point_cloud_with_bboxes(points, info['gt_boxes'],info['gt_names'])
         # output_path = "merged_point_cloud.pcd"
         # save_point_cloud_to_pcd(merged_points, output_path)
         # points = self.get_lidar(index)
-        points=merged_points
-        lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
-        points=self.transform_points(points, lidar_extrinsic)
+        # points=merged_points
+        # lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
+        # points=self.transform_points(points, lidar_extrinsic)
         input_dict = {
             'points': points,
             'frame_id': Path(info['lidars']['helios_front_left']).stem,
@@ -260,10 +284,14 @@ class KLDataset(DatasetTemplate):
             # print('gt_database sample: %d/%d' % (idx + 1, len(self.infos)))
             sample_idx = idx
             info = self.infos[idx]
-            points = self.get_lidar(idx)
-            lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
-            points= self.transform_points(points, lidar_extrinsic)
-            
+            points=self.get_merged_lidar(idx,True)
+
+            # points = self.get_lidar(idx)
+            #lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
+            #points= self.transform_points(points, lidar_extrinsic)
+
+            # visualize_point_cloud_with_bboxes(points, info['gt_boxes'],info['gt_names'])
+            # points=merged_points
             gt_boxes = info['gt_boxes']
             gt_names = info['gt_names']
 
@@ -355,31 +383,6 @@ def save_pcd_as_bin(pcd_file, bin_file):
     # 将点云数据保存为 .bin 文件
     # 将过滤后的点云数据保存为 .bin 文件
     valid_points.tofile(bin_file)
-
-
-# def split_label(label_dir,save_dir):
-#     json_files = list(label_dir.glob('*.json'))
-#     total_files = len(json_files)
-#     train_size = int(total_files * 0.8)
-#     val_size = int(total_files * 0.1)
-#     split_files = {
-#         'train': json_files[:train_size],
-#         'val': json_files[train_size:train_size + val_size],
-#         'test': json_files[train_size + val_size:]
-#     }
-
-#     # 创建目录并复制文件
-#     for split, files in split_files.items():
-#         # 创建目录
-#         split_dir = save_dir / split
-#         split_dir.mkdir(exist_ok=True)
-
-#         # 复制文件
-#         for file in files:
-#             shutil.copy(file, split_dir / file.name)
-#         print(f"{split} 目录已创建，复制了 {len(files)} 个文件")
-#     return split_files
-
 
 def split_samples(samples):
     total_files = len(samples)

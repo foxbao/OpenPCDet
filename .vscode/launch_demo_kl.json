@@ -16,8 +16,8 @@
             },
             "args": [
                 "--cfg_file","cfgs/kl_models/cbgs_pp_multihead.yaml",
-                "--ckpt","checkpoint_epoch_20.pth",
-                "--data_path","1731568817501.bin",
+                "--ckpt","checkpoint_epoch_80.pth",
+                "--data_path","merged_point_cloud.bin",
                 "--mode","kl",
                 "--ext",".bin"
             ],

@@ -134,6 +134,11 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             
             # save intermediate ckpt every {ckpt_save_time_interval} seconds         
             time_past_this_epoch = pbar.format_dict['elapsed']
+            # print("lalalalal")
+            # print(time_past_this_epoch)
+            # print(ckpt_save_time_interval)
+            # print(ckpt_save_cnt)
+            # print("dadadada")
             if time_past_this_epoch // ckpt_save_time_interval >= ckpt_save_cnt:
                 ckpt_name = ckpt_save_dir / 'latest_model'
                 save_checkpoint(
