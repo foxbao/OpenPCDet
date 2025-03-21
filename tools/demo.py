@@ -18,10 +18,10 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
-
+import pcl
 
 class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin',dataset_mode='kitti'):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
         """
         Args:
             root_path:
@@ -40,29 +40,18 @@ class DemoDataset(DatasetTemplate):
         data_file_list.sort()
         self.sample_file_list = data_file_list
 
-        self.dataset_mode=dataset_mode
-        if dataset_mode=='kitti':
-            self.feature_num=4
-        elif dataset_mode=='nuscenes':
-            self.feature_num=5
-        elif dataset_mode=='kl':
-            self.feature_num=6
-        else:
-            self.feature_num=4
-
     def __len__(self):
         return len(self.sample_file_list)
 
     def __getitem__(self, index):
         if self.ext == '.bin':
-            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, self.feature_num)
+            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 4)
         elif self.ext == '.npy':
             points = np.load(self.sample_file_list[index])
+        elif self.ext == '.pcd':
+            points = np.asarray(pcl.load(self.sample_file_list[index]).data)
         else:
             raise NotImplementedError
-
-        if self.dataset_mode=='kl':
-            points = points[:, :5]
 
         input_dict = {
             'points': points,
@@ -74,18 +63,13 @@ class DemoDataset(DatasetTemplate):
 
 
 def parse_config():
-    # 创建一个参数解析器
     parser = argparse.ArgumentParser(description='arg parser')
-    # 添加一个参数，指定配置文件
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/second.yaml',
                         help='specify the config for demo')
-    # 添加一个参数，指定点云数据文件或目录
-    parser.add_argument('--data_path', type=str, default='000008.bin',
+    parser.add_argument('--data_path', type=str, default='demo_data',
                         help='specify the point cloud data file or directory')
-    parser.add_argument('--ckpt', type=str, default='pv_rcnn_8369.pth', help='specify the pretrained model')
-    parser.add_argument('--mode',type=str, default='kitti', help='specify the dataset')
+    parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
-    
 
     args = parser.parse_args()
 
@@ -100,7 +84,7 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger,dataset_mode=args.mode
+        root_path=Path(args.data_path), ext=args.ext, logger=logger
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 

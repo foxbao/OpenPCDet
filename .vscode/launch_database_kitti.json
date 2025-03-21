@@ -5,14 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run create_kl_infos",
+            "name": "Run create_kitti_infos",
             "type": "debugpy",
             "request": "launch",
-            "module": "pcdet.datasets.kl.kl_dataset",
+            "module": "pcdet.datasets.kitti.kitti_dataset",
             "args": [
-                "--cfg_file","tools/cfgs/dataset_configs/kl_dataset.yaml",
-                "--func","create_kl_infos",
-                "--version","v1.0-trainval"
+                "create_kitti_infos",
+                "tools/cfgs/dataset_configs/kitti_dataset.yaml"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",

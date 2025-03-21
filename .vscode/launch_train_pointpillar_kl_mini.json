@@ -5,20 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run create_kl_infos",
+            "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "module": "pcdet.datasets.kl.kl_dataset",
-            "args": [
-                "--cfg_file","tools/cfgs/dataset_configs/kl_dataset.yaml",
-                "--func","create_kl_infos",
-                "--version","v1.0-trainval"
-            ],
+            "program": "train.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/tools",
             "env":{
-                "PYTHONPATH":"${workspaceFolder}"
+                "PYTHONPATH":"${workspaceFolder}/tools"
             },
+            "args": [
+                "--cfg_file","cfgs/kl_models/pointpillar_mini.yaml"
+            ],
             "justMyCode": false
         }
     ]
