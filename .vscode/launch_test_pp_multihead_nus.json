@@ -8,16 +8,15 @@
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "program": "tools/demo.py",
+            "program": "test.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/tools",
             "env":{
-                "PYTHONPATH":"${workspaceFolder}"
+                "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","tools/cfgs/nuscenes_models/cbgs_pillar0075_res2d_centerpoint.yaml",
-                "--ckpt","pp_multihead_nds5823_updated.pth",
-                "--data_path","data/nuscenes/v1.0-mini/samples/LIDAR_TOP/n008-2018-08-01-15-16-36-0400__LIDAR_TOP__1533151603547590.pcd.bin"
+                "--cfg_file","cfgs/nuscenes_models/cbgs_pp_multihead.yaml",
+                "--ckpt","./pp_multihead_nds5823_updated.pth"
             ],
             "justMyCode": false
         }

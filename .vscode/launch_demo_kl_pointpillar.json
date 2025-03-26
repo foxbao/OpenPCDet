@@ -16,7 +16,7 @@
             },
             "args": [
                 "--cfg_file","cfgs/kl_models/pointpillar.yaml",
-                "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_20.pth"
+                "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_80.pth"
             ],
             "justMyCode": false
         }

@@ -8,16 +8,16 @@
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "module": "pcdet.datasets.nuscenes.nuscenes_dataset",
+            "program": "test.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",
             "env":{
-                "PYTHONPATH":"${workspaceFolder}/tools"
+                "PYTHONPATH":"${workspaceFolder}/tools",
+                "CUDA_VISIBLE_DEVICES": "5" 
             },
             "args": [
-                "--cfg_file","cfgs/dataset_configs/nuscenes_dataset.yaml",
-                "--func","create_nuscenes_infos",
-                "--version","v1.0-mini",
+                "--cfg_file","cfgs/kitti_models/pointpillar.yaml",
+                "--ckpt","./pointpillar_7728.pth"
             ],
             "justMyCode": false
         }

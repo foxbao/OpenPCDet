@@ -32,6 +32,9 @@ def read_bin(bin_file):
     points = np.vstack((data['x'], data['y'], data['z'],data['intensity'])).transpose()
     return points
 
+def kl_eval(eval_det_annos, eval_gt_annos):
+    pass
+
 class KLDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
@@ -104,6 +107,7 @@ class KLDataset(DatasetTemplate):
         return points
 
 
+
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
             return len(self.infos) * self.total_epochs
@@ -119,29 +123,31 @@ class KLDataset(DatasetTemplate):
         info = copy.deepcopy(self.infos[index])
 
         points=self.get_merged_lidar(index,True)
-        # visualize_point_cloud_with_bboxes(points, info['gt_boxes'],info['gt_names'])
-        # output_path = "merged_point_cloud.pcd"
-        # save_point_cloud_to_pcd(merged_points, output_path)
-        # points = self.get_lidar(index)
-        # points=merged_points
-        # lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
-        # points=self.transform_points(points, lidar_extrinsic)
         input_dict = {
             'points': points,
             'frame_id': Path(info['lidars']['helios_front_left']).stem,
             'metadata': {'token': info['token']}
         }
 
-        if 'gt_boxes' in info:
-            if self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
-                mask = (info['num_lidar_pts'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
-            else:
-                mask = None
-
+        if 'annos' in info:
+            annos = info['annos']
+            gt_names = annos['name']
+            gt_boxes_lidar = annos['gt_boxes_lidar']
             input_dict.update({
-                'gt_names': info['gt_names'] if mask is None else info['gt_names'][mask],
-                'gt_boxes': info['gt_boxes'] if mask is None else info['gt_boxes'][mask]
+                'gt_names': gt_names,
+                'gt_boxes': gt_boxes_lidar
             })
+
+        # if 'gt_boxes_lidar' in info['annos']:
+        #     if self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
+        #         mask = (info['num_lidar_pts'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
+        #     else:
+        #         mask = None
+
+        #     input_dict.update({
+        #         'gt_names': info['gt_names'] if mask is None else info['gt_names'][mask],
+        #         'gt_boxes': info['gt_boxes'] if mask is None else info['gt_boxes'][mask]
+        #     })
         if self.use_camera:
             input_dict = self.load_camera_info(input_dict, info)
 
@@ -163,6 +169,7 @@ class KLDataset(DatasetTemplate):
 
         def kitti_eval(eval_det_annos, eval_gt_annos, map_name_to_kitti):
             from ..kitti.kitti_object_eval_python import eval as kitti_eval
+            from .kl_object_eval_python import eval as kl_eval
             from ..kitti import kitti_utils
 
             kitti_utils.transform_annotations_to_kitti_format(eval_det_annos, map_name_to_kitti=map_name_to_kitti)
@@ -171,16 +178,46 @@ class KLDataset(DatasetTemplate):
                 info_with_fakelidar=self.dataset_cfg.get('INFO_WITH_FAKELIDAR', False)
             )
             kitti_class_names = [map_name_to_kitti[x] for x in class_names]
-            ap_result_str, ap_dict = kitti_eval.get_official_eval_result(
-                gt_annos=eval_gt_annos, dt_annos=eval_det_annos, current_classes=kitti_class_names
+            kitti_class_names_unique = list(set(kitti_class_names))
+            ap_result_str, ap_dict = kl_eval.get_kl_eval_result(
+                gt_annos=eval_gt_annos, dt_annos=eval_det_annos, current_classes=kitti_class_names_unique
             )
             return ap_result_str, ap_dict
 
         eval_det_annos = copy.deepcopy(det_annos)
-        eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.custom_infos]
+        eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.infos]
+        # with open('eval_det_annos.pkl', 'wb') as f:  # 'wb' 表示以二进制写入模式打开文件
+        #     pickle.dump(eval_det_annos, f)
+        
+        # with open('eval_gt_annos.pkl', 'wb') as f:  # 'wb' 表示以二进制写入模式打开文件
+        #     pickle.dump(eval_gt_annos, f)
+
+        map_name_to_kitti = {
+            # 行人相关
+            'Pedestrian': 'Pedestrian',
+            'Cone': 'Cone',  # 锥桶尺寸接近行人
+            
+            # 轿车类
+            'Car': 'Car',
+            'IGV-Full': 'IGV-Full',     # 智能引导车
+            'IGV-Empty': 'IGV-Empty',    # 空载引导车
+            'OtherVehicle': 'OtherVehicle', # 其他车辆
+            
+            # 卡车类（独立类别）
+            'Truck': 'Truck',                  # 卡车
+            'Trailer-Empty': 'Trailer-Empty',          # 空拖车
+            'Trailer-Full': 'Trailer-Full',           # 满载拖车
+            'Lorry': 'Lorry',                  # 货车
+            'ContainerForklift': 'ContainerForklift',      # 集装箱叉车
+            
+            # 工程车辆
+            'Crane': 'Crane',                    # 起重机
+            'Forklift': 'Forklift',                 # 普通叉车
+            'ConstructionVehicle': 'ConstructionVehicle'       # 工程车
+        }
 
         if kwargs['eval_metric'] == 'kitti':
-            ap_result_str, ap_dict = kitti_eval(eval_det_annos, eval_gt_annos, self.map_class_to_kitti)
+            ap_result_str, ap_dict = kitti_eval(eval_det_annos, eval_gt_annos, map_name_to_kitti)
         else:
             raise NotImplementedError
 
@@ -215,16 +252,12 @@ class KLDataset(DatasetTemplate):
             sample_idx = idx
             info = self.infos[idx]
             points=self.get_merged_lidar(idx,True)
-
-            # points = self.get_lidar(idx)
-            #lidar_extrinsic=info['sensor_extrinsics']['Tx_baselink_lidar_helios_front_left']
-            #points= self.transform_points(points, lidar_extrinsic)
-
-            # visualize_point_cloud_with_bboxes(points, info['gt_boxes'],info['gt_names'])
-            # points=merged_points
-            gt_boxes = info['gt_boxes']
-            gt_names = info['gt_names']
-
+            annos = info['annos']
+            names = annos['name']
+            difficulty = annos['difficulty']
+            gt_boxes = annos['gt_boxes_lidar']
+            # gt_boxes = info['gt_boxes']
+            # gt_names = info['gt_names']
             # tranform the points from lidar coordinate to vehicle coordinate
             box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
                 torch.from_numpy(points[:, 0:3]).unsqueeze(dim=0).float().cuda(),
@@ -232,7 +265,7 @@ class KLDataset(DatasetTemplate):
             ).long().squeeze(dim=0).cpu().numpy()
 
             for i in range(gt_boxes.shape[0]):
-                filename = '%s_%s_%d.bin' % (sample_idx, gt_names[i], i)
+                filename = '%s_%s_%d.bin' % (sample_idx, names[i], i)
                 filepath = database_save_path / filename
                 gt_points = points[box_idxs_of_pts == i]
 
@@ -240,20 +273,19 @@ class KLDataset(DatasetTemplate):
                 with open(filepath, 'w') as f:
                     gt_points.tofile(f)
 
-                if (used_classes is None) or gt_names[i] in used_classes:
+                if (used_classes is None) or names[i] in used_classes:
                     db_path = str(filepath.relative_to(self.root_path))  # gt_database/xxxxx.bin
-                    db_info = {'name': gt_names[i], 'path': db_path, 'image_idx': sample_idx, 'gt_idx': i,
+                    db_info = {'name': names[i], 'path': db_path, 'image_idx': sample_idx, 'gt_idx': i,
                                 'box3d_lidar': gt_boxes[i], 'num_points_in_gt': gt_points.shape[0],'difficulty':0}
-                    if gt_names[i] in all_db_infos:
-                        all_db_infos[gt_names[i]].append(db_info)
+                    if names[i] in all_db_infos:
+                        all_db_infos[names[i]].append(db_info)
                     else:
-                        all_db_infos[gt_names[i]] = [db_info]
+                        all_db_infos[names[i]] = [db_info]
         for k, v in all_db_infos.items():
             print('Database %s: %d' % (k, len(v)))
 
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
-
 
 
 def split_samples(samples):

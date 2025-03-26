@@ -8,16 +8,16 @@
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "module": "pcdet.datasets.nuscenes.nuscenes_dataset",
+            "program": "demo_pointpillar_kl.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",
             "env":{
                 "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","cfgs/dataset_configs/nuscenes_dataset.yaml",
-                "--func","create_nuscenes_infos",
-                "--version","v1.0-mini",
+                "--cfg_file","cfgs/kl_models/pointpillar.yaml",
+                "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_80.pth",
+                "--data_path","1733211963.001387.pcd"
             ],
             "justMyCode": false
         }

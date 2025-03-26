@@ -2,7 +2,7 @@ import argparse
 import glob
 from pathlib import Path
 import os
-
+import open3d as o3d
 try:
     import open3d
     from visual_utils import open3d_vis_utils as V
@@ -22,7 +22,7 @@ from pcdet.utils import common_utils
 from pcdet.datasets import build_dataloader
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,dataset_mode='kitti'):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,dataset_mode='kl'):
         """
         Args:
             root_path:
@@ -46,7 +46,7 @@ class DemoDataset(DatasetTemplate):
         elif dataset_mode=='nuscenes':
             self.feature_num=5
         elif dataset_mode=='kl':
-            self.feature_num=6
+            self.feature_num=4
         else:
             self.feature_num=4
 
@@ -58,18 +58,20 @@ class DemoDataset(DatasetTemplate):
         file_name=self.sample_file_list[index]
         ext = Path(file_name).suffix
         if ext == '.bin':
-            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, self.feature_num)
+            points = np.fromfile(file_name, dtype=np.float32).reshape(-1, self.feature_num)
         elif ext == '.npy':
-            points = np.load(self.sample_file_list[index])
+            points = np.load(file_name)
         elif ext == '.pcd':
-            aaaa=1
+            points = np.loadtxt(file_name, skiprows=11)
+            # xyz = data[:, :3]
+            # intensity = data[:, 3]
         else:
             raise NotImplementedError
-        print("Points shape:", points.shape)
-        print("Min x:", points[:, 0].min())
-        print("Max x:", points[:, 0].max())
+        # print("Points shape:", points.shape)
+        # print("Min x:", points[:, 0].min())
+        # print("Max x:", points[:, 0].max())
         if self.dataset_mode=='kl':
-            points = points[:, :4]
+            points = points[:, :self.feature_num]
 
         input_dict = {
             'points': points,
@@ -77,9 +79,9 @@ class DemoDataset(DatasetTemplate):
         }
 
         data_dict = self.prepare_data(data_dict=input_dict)
-        print("Points shape:", data_dict['points'].shape)
-        print("Min x:", data_dict['points'][:, 0].min())
-        print("Max x:", data_dict['points'][:, 0].max())
+        # print("Points shape:", data_dict['points'].shape)
+        # print("Min x:", data_dict['points'][:, 0].min())
+        # print("Max x:", data_dict['points'][:, 0].max())
         return data_dict
 
 
@@ -107,6 +109,8 @@ def parse_config():
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
     parser.add_argument('--infer_time', action='store_true', default=False, help='calculate inference latency')
 
+    parser.add_argument('--data_path', type=str, default=None,help='specify the point cloud data file or directory')
+
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -119,23 +123,6 @@ def parse_config():
         cfg_from_list(args.set_cfgs, cfg)
 
     return args, cfg
-    # # 创建一个参数解析器
-    # parser = argparse.ArgumentParser(description='arg parser')
-    # # 添加一个参数，指定配置文件
-    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/second.yaml',
-    #                     help='specify the config for demo')
-    # # 添加一个参数，指定点云数据文件或目录
-    # parser.add_argument('--data_path', type=str, default='000008.bin',
-    #                     help='specify the point cloud data file or directory')
-    # parser.add_argument('--ckpt', type=str, default='pv_rcnn_8369.pth', help='specify the pretrained model')
-    # parser.add_argument('--mode',type=str, default='kitti', help='specify the dataset')
-
-    # args = parser.parse_args()
-
-    # cfg_from_yaml_file(args.cfg_file, cfg)
-
-    # return args, cfg
-
 
 def main():
     args, cfg = parse_config()
@@ -168,35 +155,62 @@ def main():
 
     eval_output_dir = output_dir / 'eval'
 
-    test_set, test_loader, sampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,
-        class_names=cfg.CLASS_NAMES,
-        batch_size=args.batch_size,
-        dist=dist_test, workers=args.workers, logger=logger, training=False
-    )
+    # 单文件输入模式
+    if args.data_path:
+        demo_dataset = DemoDataset(
+            dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
+            root_path=Path(args.data_path),  logger=logger
+        )
+        logger.info(f'Total number of samples: \t{len(demo_dataset)}')
+
+        model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
+        model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
+        model.cuda()
+        model.eval()
+        with torch.no_grad():
+            for idx, data_dict in enumerate(demo_dataset):
+                logger.info(f'Visualized sample index: \t{idx + 1}')
+                data_dict = demo_dataset.collate_batch([data_dict])
+                load_data_to_gpu(data_dict)
+                pred_dicts, _ = model.forward(data_dict)
+
+                V.draw_scenes(
+                    points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                    ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+                )
+
+                if not OPEN3D_FLAG:
+                    mlab.show(stop=True)
+    # kl数据集的eval所有文件模式
+    else:
+        test_set, test_loader, sampler = build_dataloader(
+            dataset_cfg=cfg.DATA_CONFIG,
+            class_names=cfg.CLASS_NAMES,
+            batch_size=args.batch_size,
+            dist=dist_test, workers=args.workers, logger=logger, training=False
+        )
 
 
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
-    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-    model.cuda()
-    model.eval()
-    with torch.no_grad():
+        model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
+        model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
+        model.cuda()
+        model.eval()
+        with torch.no_grad():
+            for idx, batch_dict in enumerate(test_loader):
+                load_data_to_gpu(batch_dict)
+                pred_dicts, _ = model.forward(batch_dict)
+                mask = pred_dicts[0]['pred_scores'] > 0.5
+                filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
+                filtered_scores = pred_dicts[0]['pred_scores'][mask]
+                filtered_labels = pred_dicts[0]['pred_labels'][mask]
 
-        for idx, batch_dict in enumerate(test_loader):
-            load_data_to_gpu(batch_dict)
-            pred_dicts, _ = model.forward(batch_dict)
-            mask = pred_dicts[0]['pred_scores'] > 0.5
-            filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
-            filtered_scores = pred_dicts[0]['pred_scores'][mask]
-            filtered_labels = pred_dicts[0]['pred_labels'][mask]
 
-
-            V.draw_scenes(
-                points=batch_dict['points'][:, 1:], ref_boxes=filtered_boxes,
-                ref_scores=filtered_scores, ref_labels=filtered_labels
-            )
-            if not OPEN3D_FLAG:
-                mlab.show(stop=True)
+                V.draw_scenes(
+                    points=batch_dict['points'][:, 1:], ref_boxes=filtered_boxes,
+                    ref_scores=filtered_scores, ref_labels=filtered_labels
+                )
+                if not OPEN3D_FLAG:
+                    mlab.show(stop=True)
 
     logger.info('Demo done.')
 

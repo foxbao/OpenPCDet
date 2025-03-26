@@ -222,13 +222,52 @@ def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
     
     return gt_boxes
 
-def convert_json_to_gt(annotations:List[dict]):
+
+def convert_json_to_annotations(json_data:List[dict]):
+    annotations={}
     gt_boxes=[]
     gt_names=[]
     gt_subtype=[]
     gt_boxes_token=[]
     gt_track_ids=[]
-    for data in annotations:
+    for data in json_data:
+        if data['label']=='Container':
+            continue
+        if data['label']=='Vehicle':
+            gt_names.append(data['subtype'])
+        else:
+            gt_names.append(data['label'])
+        gt_boxes.append(convert_to_gt_boxes_7dof(data['xyz'],data['lwh'],data['rotation']))
+
+        gt_subtype.append(data['subtype'])
+        gt_boxes_token.append(data['track_id'])
+        gt_track_ids.append(data['track_id'])
+    gt_boxes = np.vstack(gt_boxes)
+    gt_names = np.array(gt_names)
+    gt_subtype= np.array(gt_subtype)
+    gt_boxes_token = np.array(gt_boxes_token)
+    gt_track_ids = np.array(gt_track_ids)
+    gt_boxes_lidar=gt_boxes
+    annotations['name'] = np.array(gt_names)
+    
+    num_gt = len(annotations['name'])
+    # 获取标签截断程度
+    annotations['location'] = np.array([[obj[0], obj[1], obj[2]] for obj in gt_boxes])  # xyz
+    annotations['dimensions'] = np.array([[obj[3], obj[4], obj[5]] for obj in gt_boxes])  # lwh(camera) format
+    annotations['rotation_y'] = np.array([obj[6] for obj in gt_boxes])
+    annotations['score'] = np.zeros(num_gt, dtype=np.float32)
+    annotations['difficulty'] = np.zeros(num_gt, dtype=np.float32)
+    annotations['gt_boxes_lidar'] = gt_boxes_lidar
+    return annotations
+
+
+def convert_json_to_gt(json_data:List[dict]):
+    gt_boxes=[]
+    gt_names=[]
+    gt_subtype=[]
+    gt_boxes_token=[]
+    gt_track_ids=[]
+    for data in json_data:
         if data['label']=='Container':
             continue
         if data['label']=='Vehicle':
@@ -258,7 +297,7 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
         with open(sample['label'], 'r', encoding='utf-8') as f:
             data = json.load(f)
         gt_boxes,gt_names,gt_subtypes,gt_boxes_token,gt_track_ids=convert_json_to_gt(data)
-
+        annotations=convert_json_to_annotations(data)
         with open(sample['extrinsics_path'], 'r', encoding='utf-8') as f:
             extrinsice_data = json.load(f)
         with open(sample['intrinsics_path'], 'r', encoding='utf-8') as f:
@@ -269,12 +308,12 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
         info = {
             'token': sample['token'],
             'timestamp': sample['timestamp'],
-            'annotations': data,
-            'gt_boxes':gt_boxes,
-            'gt_names':gt_names,
-            'gt_subtypes':gt_subtypes,
-            'gt_boxes_token':gt_boxes_token,
-            'gt_track_ids':gt_track_ids,
+            'annos': annotations,
+            # 'gt_boxes':gt_boxes,
+            # 'gt_names':gt_names,
+            # 'gt_subtypes':gt_subtypes,
+            # 'gt_boxes_token':gt_boxes_token,
+            # 'gt_track_ids':gt_track_ids,
             'lidars': sample['lidars'],
             'cameras': sample['cameras'],
             'localization': sample['localization'],
@@ -284,12 +323,12 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
         }
 
         # gt_boxes增加速度
-        gt_boxes=info['gt_boxes']
-        locs = gt_boxes[:, :3]
-        dims = gt_boxes[:, 3:6]
-        rots = gt_boxes[:, 6].reshape(-1, 1)
-        velocity = np.zeros((gt_boxes.shape[0], 2))
-        info['gt_boxes'] = np.concatenate([locs, dims, rots, velocity], axis=1)
+        # gt_boxes=info['gt_boxes']
+        # locs = gt_boxes[:, :3]
+        # dims = gt_boxes[:, 3:6]
+        # rots = gt_boxes[:, 6].reshape(-1, 1)
+        # velocity = np.zeros((gt_boxes.shape[0], 2))
+        # info['gt_boxes'] = np.concatenate([locs, dims, rots, velocity], axis=1)
         if sample['token'] in train_samples:
             train_kl_infos.append(info)
         elif sample['token'] in val_samples:
