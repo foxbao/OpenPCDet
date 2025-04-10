@@ -18,9 +18,11 @@ class PointPillar(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
+            # batch_dict.pop('cls_preds_normalized', None)
+            # return batch_dict
             pred_dicts, recall_dicts = self.post_processing(batch_dict)
+            # return pred_dicts, recall_dicts,self.module_list[-1].forward_ret_dict
             return pred_dicts, recall_dicts
-
     def get_training_loss(self):
         disp_dict = {}
 

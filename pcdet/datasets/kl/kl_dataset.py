@@ -74,10 +74,10 @@ class KLDataset(DatasetTemplate):
         extrinsic_names={}
         extrinsic_names['helios_front_left']='Tx_baselink_lidar_helios_front_left'
         extrinsic_names['helios_rear_right']='Tx_baselink_lidar_helios_rear_right'
-        # extrinsic_names['bp_front_left']='Tx_baselink_lidar_bp_front_left'
-        # extrinsic_names['bp_front_right']='Tx_baselink_lidar_bp_front_right'
-        # extrinsic_names['bp_rear_left']='Tx_baselink_lidar_bp_rear_left'
-        # extrinsic_names['bp_rear_right']='Tx_baselink_lidar_bp_rear_right'
+        extrinsic_names['bp_front_left']='Tx_baselink_lidar_bp_front_left' # 向下补盲
+        # extrinsic_names['bp_front_right']='Tx_baselink_lidar_bp_front_right' #向上补盲
+        # extrinsic_names['bp_rear_left']='Tx_baselink_lidar_bp_rear_left' #向上补盲
+        extrinsic_names['bp_rear_right']='Tx_baselink_lidar_bp_rear_right' #向下补盲
         
         # lidar_configurations=[]
         # lidar_configurations.append({"lidar_name": "helios_front_left","lidar_extrinsic_name": "Tx_baselink_lidar_helios_front_left"})
@@ -95,6 +95,11 @@ class KLDataset(DatasetTemplate):
                 
         if point_clouds:  # 如果列表不为空
             merged_point_cloud = np.concatenate(point_clouds, axis=0)
+
+        # import open3d as o3d
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(merged_point_cloud[:, :3])
+        # o3d.io.write_point_cloud("output_with_intensity.pcd", pcd, write_ascii=True)
         return merged_point_cloud
     
     def get_lidar(self, index,lidar_name='helios_front_left'):

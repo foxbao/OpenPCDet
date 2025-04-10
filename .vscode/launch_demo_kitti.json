@@ -16,7 +16,7 @@
             },
             "args": [
                 "--cfg_file","cfgs/kitti_models/pointpillar.yaml",
-                "--ckpt","pointpillar_7728.pth",
+                "--ckpt","ckpts/pointpillar_7728.pth",
                 "--data_path","000008.bin",
                 "--ext",".bin"
             ],
