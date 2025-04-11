@@ -296,7 +296,7 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
         progress_bar.update()
         with open(sample['label'], 'r', encoding='utf-8') as f:
             data = json.load(f)
-        gt_boxes,gt_names,gt_subtypes,gt_boxes_token,gt_track_ids=convert_json_to_gt(data)
+        # gt_boxes,gt_names,gt_subtypes,gt_boxes_token,gt_track_ids=convert_json_to_gt(data)
         annotations=convert_json_to_annotations(data)
         with open(sample['extrinsics_path'], 'r', encoding='utf-8') as f:
             extrinsice_data = json.load(f)

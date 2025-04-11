@@ -186,7 +186,7 @@ def main():
         test_set, test_loader, sampler = build_dataloader(
             dataset_cfg=cfg.DATA_CONFIG,
             class_names=cfg.CLASS_NAMES,
-            batch_size=args.batch_size,
+            batch_size=1,
             dist=dist_test, workers=args.workers, logger=logger, training=False
         )
 
@@ -203,7 +203,6 @@ def main():
                 filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
                 filtered_scores = pred_dicts[0]['pred_scores'][mask]
                 filtered_labels = pred_dicts[0]['pred_labels'][mask]
-
 
                 V.draw_scenes(
                     points=batch_dict['points'][:, 1:], ref_boxes=filtered_boxes,

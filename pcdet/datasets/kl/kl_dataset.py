@@ -165,6 +165,12 @@ class KLDataset(DatasetTemplate):
 
         # if not self.dataset_cfg.PRED_VELOCITY and 'gt_boxes' in data_dict:
         #     data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
+        data_dict['timestamp']=info['timestamp']
+        helios_front_left_path=info['lidars']['helios_front_left']
+        parts = helios_front_left_path.split('/')
+        sample_index = parts.index('sample')
+        folder = '/'.join(parts[sample_index+1:sample_index+3])
+        data_dict['folder']=folder
 
         return data_dict
     
