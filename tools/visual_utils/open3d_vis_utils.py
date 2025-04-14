@@ -16,14 +16,14 @@ import numpy as np
 # ]
 box_colormap = [
     (1, 1, 1),
-    (1, 0, 0),        # 红色, Pedestrian，因为数据集里面会对每个label+1
+    (0.3, 0.5, 0.8),        # 红色, Pedestrian，因为数据集里面会对每个label+1
     (0, 1, 0),        # 绿色，Car 
     (0, 0, 1),        # 蓝色，IGV-Full 
     (1, 1, 0),        # 黄色，Truck
     (0, 1, 1),        # 青色，Trailer-Empty
     (1, 0, 1),        # 紫色，Trailer-Full
-    (0.5, 0.5, 0.5),  # 灰色，IGV-Empty
-    (1, 0.5, 0),      # 橙色，Crane
+    (1, 0.5, 0),      # 橙色，IGV-Empty
+    (0.5, 0.5, 0.5),  # 灰色，Crane
     (0.5, 0, 0.5),    # 深紫色，OtherVehicle
     (0, 0.5, 0.5),    # 深青色，Cone
     (0.2, 0.8, 0.2),  # 浅绿，ContainerForklift

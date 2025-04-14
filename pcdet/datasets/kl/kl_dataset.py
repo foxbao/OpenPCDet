@@ -14,6 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from .kl_dataset_utils import fill_trainval_infos
 from .kl import KL
 from pcdet.utils import common_utils
+import random
 
 def read_bin(bin_file):
     dtype = np.dtype([
@@ -302,7 +303,7 @@ class KLDataset(DatasetTemplate):
 def split_samples(samples):
     total_files = len(samples)
     train_size = int(total_files * 0.8)
-    val_size = int(total_files * 0.1)
+    val_size = int(total_files * 0.18)
     split_samples = {
         'train': samples[:train_size],
         'val': samples[train_size:train_size + val_size],
@@ -317,6 +318,7 @@ def create_kl_infos(version, data_path, save_path,with_cam=False):
     from . import kl_dataset_utils
     kl = KL(version=version, dataroot=data_path, verbose=True)
     samples=kl.get_all_sample()
+    random.shuffle(samples)
 
     train_samples,val_samples,test_samples=split_samples(samples)
     train_samples = {d['token'] for d in train_samples}

@@ -2,30 +2,8 @@ import numpy as np
 import open3d as o3d
 import os
 import torch
-box_colormap = [
-    (1, 1, 1),
-    (1, 0, 0),        # 红色, Pedestrian，因为数据集里面会对每个label+1
-    (0, 1, 0),        # 绿色，Car 
-    (0, 0, 1),        # 蓝色，IGV-Full 
-    (1, 1, 0),        # 黄色，Truck
-    (0, 1, 1),        # 青色，Trailer-Empty
-    (1, 0, 1),        # 紫色，Trailer-Full
-    (0.5, 0.5, 0.5),  # 灰色，IGV-Empty
-    (1, 0.5, 0),      # 橙色，Crane
-    (0.5, 0, 0.5),    # 深紫色，OtherVehicle
-    (0, 0.5, 0.5),    # 深青色，Cone
-    (0.2, 0.8, 0.2),  # 浅绿，ContainerForklift
-    (0.8, 0.2, 0.2),  # 浅红，Forklift
-    (0.2, 0.2, 0.8),  # 浅蓝，Lorry
-    (0.7, 0.7, 0.2),  # 橄榄绿，ConstructionVehicle
-    (0.6, 0.3, 0.7),  # 淡紫色
-    (0.9, 0.6, 0.1),  # 金色
-    (0.4, 0.7, 0.4),  # 薄荷绿
-    (0.3, 0.5, 0.8),  # 天蓝
-    (0.8, 0.4, 0.6),  # 粉红
-    (0.1, 0.9, 0.5)   # 荧光绿
-]
 
+from visual_utils.open3d_vis_utils import box_colormap
 
 def create_3d_box(center, size, rotation_matrix=np.eye(3), color=[1, 0, 0]):
     """
@@ -125,7 +103,7 @@ def offscreen_visualization_array(points_array, gt_boxes=None,ref_boxes=None,out
     if gt_boxes is not None:
         for i, bbox in enumerate(gt_boxes):
             # color = cm.plasma(i / len(bboxes))[:3]  # 框的颜色渐变
-            color = (1, 1, 1)  # 固定为绿色 RGB
+            color = (1, 0, 0)  # 真值固定为荧光绿 RGB
             label=int(bbox[7])
             # color = box_colormap[label]  # 固定为绿色 RGB
             bbox_geometries.append(create_3d_bbox(bbox, color=color))

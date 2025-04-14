@@ -21,6 +21,7 @@ from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
 from pcdet.datasets import build_dataloader
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
+from tqdm import tqdm
 class DemoDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,dataset_mode='kl'):
         """
@@ -95,6 +96,9 @@ def SaveBoxPred(boxes: list, file_name: str):
         boxes: 形状为[N, 9]的列表，每个bbox包含9个数值
         file_name: 输出文件路径
     """
+
+    if isinstance(boxes, torch.Tensor):
+        boxes = boxes.cpu().numpy()
     try:
         # 自动创建目录
         os.makedirs(os.path.dirname(file_name) or ".", exist_ok=True)
@@ -106,7 +110,7 @@ def SaveBoxPred(boxes: list, file_name: str):
                     continue
                 f.write(" ".join(map(str, box)) + "\n")
                 
-        print(f"检测框已保存至: {file_name}")
+        # print(f"检测框已保存至: {file_name}")
     except Exception as e:
         print(f"保存失败: {str(e)}")
 
@@ -227,7 +231,7 @@ def main():
         model.cuda()
         model.eval()
         with torch.no_grad():
-            for idx, batch_dict in enumerate(test_loader):
+            for idx, batch_dict in enumerate(tqdm(test_loader)):
                 load_data_to_gpu(batch_dict)
                 pred_dicts, _ = model.forward(batch_dict)
                 mask = pred_dicts[0]['pred_scores'] > 0.5
@@ -245,10 +249,12 @@ def main():
                     pred_result_name=folder+"/"+timestamp+".txt"
                     SaveBoxPred(boxes_label_score,pred_result_name)
                     output_image=folder+"/"+timestamp+".png"
+                    gt_boxes=batch_dict['gt_boxes'][0]
                     offscreen_visualization_array(
                         batch_dict['points'][:, 1:],
                         ref_boxes=boxes_label,
-                        output_image=timestamp
+                        gt_boxes=gt_boxes,
+                        output_image=output_image
                     )
                 else:
                     V.draw_scenes(
