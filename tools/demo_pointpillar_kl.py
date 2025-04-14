@@ -14,7 +14,7 @@ except:
 
 import numpy as np
 import torch
-
+from visual_utils.visualize_tools import offscreen_visualization_array
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
@@ -85,6 +85,32 @@ class DemoDataset(DatasetTemplate):
         return data_dict
 
 
+
+def SaveBoxPred(boxes: list, file_name: str):
+    """
+    将9维检测框数据完整写入txt文件
+    格式: x1 y1 x2 y2 dim5 dim6 dim7 class_id score
+
+    参数:
+        boxes: 形状为[N, 9]的列表，每个bbox包含9个数值
+        file_name: 输出文件路径
+    """
+    try:
+        # 自动创建目录
+        os.makedirs(os.path.dirname(file_name) or ".", exist_ok=True)
+        
+        with open(file_name, 'w') as f:
+            for box in boxes:
+                if len(box) != 9:
+                    print(f"跳过无效数据: 需要9维, 实际得到{len(box)}维")
+                    continue
+                f.write(" ".join(map(str, box)) + "\n")
+                
+        print(f"检测框已保存至: {file_name}")
+    except Exception as e:
+        print(f"保存失败: {str(e)}")
+
+
 def parse_config():
 
     parser = argparse.ArgumentParser(description='arg parser')
@@ -100,15 +126,13 @@ def parse_config():
     parser.add_argument('--local_rank', type=int, default=None, help='local rank for distributed training')
     parser.add_argument('--set', dest='set_cfgs', default=None, nargs=argparse.REMAINDER,
                         help='set extra config keys if needed')
-
     parser.add_argument('--max_waiting_mins', type=int, default=30, help='max waiting minutes')
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--eval_tag', type=str, default='default', help='eval tag for this experiment')
     parser.add_argument('--eval_all', action='store_true', default=False, help='whether to evaluate all checkpoints')
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
-    parser.add_argument('--save_to_file', action='store_true', default=False, help='')
+    parser.add_argument('--save_to_file', action='store_true', default=False, help='save the demo result to image')
     parser.add_argument('--infer_time', action='store_true', default=False, help='calculate inference latency')
-
     parser.add_argument('--data_path', type=str, default=None,help='specify the point cloud data file or directory')
 
     args = parser.parse_args()
@@ -174,10 +198,17 @@ def main():
                 load_data_to_gpu(data_dict)
                 pred_dicts, _ = model.forward(data_dict)
                 print('detected ',pred_dicts[0]['pred_boxes'].size()[0],' objects')
-                V.draw_scenes(
+                
+                if args.save_to_file:
+                    V.save_scenes(
                     points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
                     ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
                 )
+                else:
+                    V.draw_scenes(
+                        points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                        ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+                    )
 
                 if not OPEN3D_FLAG:
                     mlab.show(stop=True)
@@ -203,11 +234,27 @@ def main():
                 filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
                 filtered_scores = pred_dicts[0]['pred_scores'][mask]
                 filtered_labels = pred_dicts[0]['pred_labels'][mask]
+    
+                boxes_label = torch.cat((filtered_boxes, filtered_labels.unsqueeze(1)), dim=1)
+                boxes_label_score= torch.cat((boxes_label, filtered_scores.unsqueeze(1)), dim=1)
 
-                V.draw_scenes(
-                    points=batch_dict['points'][:, 1:], ref_boxes=filtered_boxes,
-                    ref_scores=filtered_scores, ref_labels=filtered_labels
-                )
+                
+                if args.save_to_file:
+                    timestamp= batch_dict['timestamp'][0]
+                    folder="../result/demo/"+batch_dict['folder'][0]
+                    pred_result_name=folder+"/"+timestamp+".txt"
+                    SaveBoxPred(boxes_label_score,pred_result_name)
+                    output_image=folder+"/"+timestamp+".png"
+                    offscreen_visualization_array(
+                        batch_dict['points'][:, 1:],
+                        ref_boxes=boxes_label,
+                        output_image=timestamp
+                    )
+                else:
+                    V.draw_scenes(
+                        points=batch_dict['points'][:, 1:], ref_boxes=filtered_boxes,
+                        ref_scores=filtered_scores, ref_labels=filtered_labels
+                    )
                 if not OPEN3D_FLAG:
                     mlab.show(stop=True)
 

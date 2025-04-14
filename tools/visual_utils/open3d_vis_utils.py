@@ -57,7 +57,6 @@ def get_coor_colors(obj_labels):
 
     return label_rgba
 
-
 def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True):
     if isinstance(points, torch.Tensor):
         points = points.cpu().numpy()
