@@ -1,7 +1,8 @@
-DATASET: 'KittiDataset'
-DATA_PATH: '../data/kitti'
+DATASET: 'KLDataset'
+DATA_PATH: '../data/kl'
 
 POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1]
+VERSION: 'v1.0-trainval'
 
 DATA_SPLIT: {
     'train': train,
@@ -9,8 +10,8 @@ DATA_SPLIT: {
 }
 
 INFO_PATH: {
-    'train': [kitti_infos_train.pkl],
-    'test': [kitti_infos_val.pkl],
+    'train': [kl_infos_train.pkl],
+    'test': [kl_infos_val.pkl],
 }
 
 GET_ITEM_LIST: ["points"]
@@ -20,15 +21,24 @@ DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling
-          USE_ROAD_PLANE: False
           DB_INFO_PATH:
-              - kitti_dbinfos_train.pkl
+              - kl_dbinfos.pkl
           PREPARE: {
-             filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'],
-             filter_by_difficulty: [-1],
+             filter_by_min_points: [
+                    'Pedestrian:5', 'Car:5', 'IGV-Full:5', 'Truck:5',
+                    'Trailer-Empty:5','Trailer-Full:5',
+                    'IGV-Empty:5', 'Crane:5', 'OtherVehicle:5', 'Cone:5',
+                    'ContainerForklift:5', 'Forklift:5', 'Lorry:5', 'ConstructionVehicle:5'
+             ],
           }
 
-          SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Cyclist:15']
+          SAMPLE_GROUPS: [
+                'Pedestrian:36', 'Car:7', 'IGV-Full:1', 'Truck:26',
+                'Trailer-Empty:19','Trailer-Full:8',
+                'IGV-Empty:4', 'Crane:8', 'OtherVehicle:1', 'Cone:2',
+                'ContainerForklift:1', 'Forklift:1', 'Lorry:2', 'ConstructionVehicle:2'
+          ]
+
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
@@ -58,7 +68,7 @@ DATA_PROCESSOR:
     - NAME: shuffle_points
       SHUFFLE_ENABLED: {
         'train': True,
-        'test': False
+        'test': True
       }
 
     - NAME: transform_points_to_voxels
