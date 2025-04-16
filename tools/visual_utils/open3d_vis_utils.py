@@ -16,7 +16,7 @@ import numpy as np
 # ]
 box_colormap = [
     (1, 1, 1),
-    (0.3, 0.5, 0.8),        # 红色, Pedestrian，因为数据集里面会对每个label+1
+    (0.3, 0.5, 0.8),  # 天蓝, Pedestrian，因为数据集里面会对每个label+1
     (0, 1, 0),        # 绿色，Car 
     (0, 0, 1),        # 蓝色，IGV-Full 
     (1, 1, 0),        # 黄色，Truck
@@ -27,11 +27,11 @@ box_colormap = [
     (0.5, 0, 0.5),    # 深紫色，OtherVehicle
     (0, 0.5, 0.5),    # 深青色，Cone
     (0.2, 0.8, 0.2),  # 浅绿，ContainerForklift
-    (0.8, 0.2, 0.2),  # 浅红，Forklift
+    (0.9, 0.6, 0.1),  # 金色，Forklift
     (0.2, 0.2, 0.8),  # 浅蓝，Lorry
     (0.7, 0.7, 0.2),  # 橄榄绿，ConstructionVehicle
     (0.6, 0.3, 0.7),  # 淡紫色
-    (0.9, 0.6, 0.1),  # 金色
+    (0.8, 0.2, 0.2),  # 浅红
     (0.4, 0.7, 0.4),  # 薄荷绿
     (0.3, 0.5, 0.8),  # 天蓝
     (0.8, 0.4, 0.6),  # 粉红
@@ -86,7 +86,7 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
         pts.colors = open3d.utility.Vector3dVector(point_colors)
 
     if gt_boxes is not None:
-        vis = draw_box(vis, gt_boxes, (0, 0, 1))
+        vis = draw_box(vis, gt_boxes, (1, 0, 0))
 
     if ref_boxes is not None:
         vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores)

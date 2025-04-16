@@ -14,7 +14,7 @@ except:
 
 import numpy as np
 import torch
-from visual_utils.visualize_tools import offscreen_visualization_array
+from visual_utils.visualize_tools import offscreen_visualization_array,visualization_array_pyvista
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
@@ -234,10 +234,13 @@ def main():
             for idx, batch_dict in enumerate(tqdm(test_loader)):
                 load_data_to_gpu(batch_dict)
                 pred_dicts, _ = model.forward(batch_dict)
-                mask = pred_dicts[0]['pred_scores'] > 0.5
+                mask = pred_dicts[0]['pred_scores'] > 0.01
                 filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
                 filtered_scores = pred_dicts[0]['pred_scores'][mask]
                 filtered_labels = pred_dicts[0]['pred_labels'][mask]
+                # filtered_boxes = pred_dicts[0]['pred_boxes']
+                # filtered_scores = pred_dicts[0]['pred_scores']
+                # filtered_labels = pred_dicts[0]['pred_labels']
     
                 boxes_label = torch.cat((filtered_boxes, filtered_labels.unsqueeze(1)), dim=1)
                 boxes_label_score= torch.cat((boxes_label, filtered_scores.unsqueeze(1)), dim=1)
@@ -250,7 +253,13 @@ def main():
                     SaveBoxPred(boxes_label_score,pred_result_name)
                     output_image=folder+"/"+timestamp+".png"
                     gt_boxes=batch_dict['gt_boxes'][0]
-                    offscreen_visualization_array(
+                    # offscreen_visualization_array(
+                    #     batch_dict['points'][:, 1:],
+                    #     ref_boxes=boxes_label,
+                    #     gt_boxes=gt_boxes,
+                    #     output_image=output_image
+                    # )
+                    visualization_array_pyvista(
                         batch_dict['points'][:, 1:],
                         ref_boxes=boxes_label,
                         gt_boxes=gt_boxes,
@@ -258,7 +267,7 @@ def main():
                     )
                 else:
                     V.draw_scenes(
-                        points=batch_dict['points'][:, 1:], ref_boxes=filtered_boxes,
+                        points=batch_dict['points'][:, 1:], gt_boxes=batch_dict['gt_boxes'][0],ref_boxes=filtered_boxes,
                         ref_scores=filtered_scores, ref_labels=filtered_labels
                     )
                 if not OPEN3D_FLAG:

@@ -1,17 +1,18 @@
+
 import argparse
 import datetime
 import os
 import re
 from pathlib import Path
+
 import numpy as np
 
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import common_utils
 from pcdet.datasets import build_dataloader
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
-
+import open3d as o3d
 from tqdm import tqdm
-from visual_utils.visualize_tools import offscreen_visualization_array,visualization_array_pyvista
 
 
 def parse_config():
@@ -50,6 +51,40 @@ def parse_config():
         cfg_from_list(args.set_cfgs, cfg)
 
     return args, cfg
+
+def save_xyzi_as_pcd_ascii(points_xyzi, timestamp, output_dir="."):
+    """
+    手动生成 PCD 文件（ASCII 格式），支持 xyzi，使用传入的时间戳
+    
+    参数:
+        points_xyzi: NumPy 数组，形状 (N,4)，格式 [x, y, z, intensity]
+        timestamp: 字符串格式的时间戳
+        output_dir: 输出目录（默认当前目录）
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    filename = os.path.join(output_dir, f"{timestamp}.pcd")
+
+    with open(filename, "w") as f:
+        # PCD 文件头
+        f.write(
+            "# .PCD v0.7 - Point Cloud Data\n"
+            "VERSION 0.7\n"
+            "FIELDS x y z intensity\n"
+            "SIZE 4 4 4 4\n"
+            "TYPE F F F F\n"
+            "COUNT 1 1 1 1\n"
+            f"WIDTH {len(points_xyzi)}\n"
+            "HEIGHT 1\n"
+            "VIEWPOINT 0 0 0 1 0 0 0\n"
+            f"POINTS {len(points_xyzi)}\n"
+            "DATA ascii\n"
+        )
+        # 写入点数据
+        np.savetxt(f, points_xyzi, fmt="%.6f")  # 保留6位小数
+
+    print(f"点云已保存: {filename} (点数: {len(points_xyzi)})")
+    return filename
+
 
 def main():
     # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
@@ -113,19 +148,14 @@ def main():
         dist=dist_test, workers=args.workers, logger=logger, training=True
     )
 
-    print("saving to ","../result/groundtruth_train")
     for idx, batch_dict in enumerate(tqdm(train_loader)):
         points = batch_dict['points']
         points = points[:, 1:]
         gt_boxes=batch_dict['gt_boxes'][0]
-        folder="../result/groundtruth_train/"+batch_dict['folder'][0]
+        folder="../merged/groundtruth_train/"+batch_dict['folder'][0]
         timestamp=batch_dict['timestamp'][0]
-        output_image=folder+"/"+timestamp+".png"
-        offscreen_visualization_array(
-            points,
-            gt_boxes=gt_boxes,
-            output_image=output_image
-        )
+        save_xyzi_as_pcd_ascii(points, timestamp, output_dir=folder)
+
 
     val_set, val_loader, sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,
@@ -134,21 +164,15 @@ def main():
         dist=dist_test, workers=args.workers, logger=logger, training=False
     )
 
-    print("saving to ","../result/groundtruth_val")
+    
     # 注意，要运行这个代码，需要修改一下kl_dataset里面的返回值，在__getitem__函数中，将timestamp和folder都返回
     for idx, batch_dict in enumerate(tqdm(val_loader)):
         points = batch_dict['points']
         points = points[:, 1:]
         gt_boxes=batch_dict['gt_boxes'][0]
-        folder="../result/groundtruth_val/"+batch_dict['folder'][0]
+        folder="../merged/groundtruth_val/"+batch_dict['folder'][0]
         timestamp=batch_dict['timestamp'][0]
-        output_image=folder+"/"+timestamp+".png"
-        offscreen_visualization_array(
-            points,
-            gt_boxes=gt_boxes,
-            output_image=output_image
-        )
-
+        save_xyzi_as_pcd_ascii(points, timestamp, output_dir=folder)
 
 
 if __name__ == '__main__':

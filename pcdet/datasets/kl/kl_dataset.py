@@ -144,16 +144,6 @@ class KLDataset(DatasetTemplate):
                 'gt_boxes': gt_boxes_lidar
             })
 
-        # if 'gt_boxes_lidar' in info['annos']:
-        #     if self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
-        #         mask = (info['num_lidar_pts'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
-        #     else:
-        #         mask = None
-
-        #     input_dict.update({
-        #         'gt_names': info['gt_names'] if mask is None else info['gt_names'][mask],
-        #         'gt_boxes': info['gt_boxes'] if mask is None else info['gt_boxes'][mask]
-        #     })
         if self.use_camera:
             input_dict = self.load_camera_info(input_dict, info)
 

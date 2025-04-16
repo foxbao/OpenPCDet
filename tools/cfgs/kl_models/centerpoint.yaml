@@ -30,7 +30,7 @@ DATA_CONFIG:
           }
 
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.16, 0.16, 4]
+          VOXEL_SIZE: [0.05, 0.05, 0.1]
           MAX_POINTS_PER_VOXEL: 32
           MAX_NUMBER_OF_VOXELS: {
             'train': 16000,
@@ -101,7 +101,7 @@ MODEL:
 
     CLASS_NAMES_EACH_HEAD:
       [
-        "Pedestrian",
+        ["Pedestrian",
         "Car",
         "IGV-Full",
         "Truck",
@@ -114,7 +114,7 @@ MODEL:
         "ContainerForklift",
         "Forklift",
         "Lorry",
-        "ConstructionVehicle",
+        "ConstructionVehicle"]
       ]
 
     SHARED_CONV_CHANNEL: 64

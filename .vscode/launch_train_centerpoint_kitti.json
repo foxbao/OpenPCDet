@@ -15,7 +15,7 @@
                 "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","cfgs/kitti_models/cbgs_voxel01_res3d_centerpoint.yaml"
+                "--cfg_file","cfgs/kitti_models/center_point.yaml"
             ],
             "justMyCode": false
         }
