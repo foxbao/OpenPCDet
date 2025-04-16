@@ -3,80 +3,25 @@ import open3d as o3d
 import os
 import torch
 import pyvista as pv
-from visual_utils.open3d_vis_utils import box_colormap
+# from visual_utils.open3d_vis_utils import box_colormap
 
 
 class_names = {
-    0: "Pedestrian",
-    1: "Car",
-    2: "IGV-Full",
-    3: "Truck",
-    4: "Trailer-Empty",
-    5: "Trailer-Full",
-    6: "IGV-Empty",
-    7: "Crane",
-    8: "OtherVehicle",
-    9: "Cone",
-    10: "ContainerForklift",
-    11: "Forklift",
-    12: "Lorry",
-    13: "ConstructionVehicle",
+    1: "Pedestrian",
+    2: "Car",
+    3: "IGV-Full",
+    4: "Truck",
+    5: "Trailer-Empty",
+    6: "Trailer-Full",
+    7: "IGV-Empty",
+    8: "Crane",
+    9: "OtherVehicle",
+    10: "Cone",
+    11: "ContainerForklift",
+    12: "Forklift",
+    13: "Lorry",
+    14: "ConstructionVehicle",
 }
-
-
-def create_3d_box(center, size, rotation_matrix=np.eye(3), color=[1, 0, 0]):
-    """
-    创建3D边界框（8个顶点+12条边）
-    参数:
-        center: [x,y,z] 框中心坐标
-        size: [长,宽,高]
-        rotation_matrix: 3x3旋转矩阵
-        color: RGB颜色值
-    """
-    # 计算半长宽高
-    l, w, h = size[0] / 2, size[1] / 2, size[2] / 2
-
-    # 定义8个顶点的相对坐标
-    vertices = np.array(
-        [
-            [-l, -w, -h],
-            [l, -w, -h],
-            [l, w, -h],
-            [-l, w, -h],
-            [-l, -w, h],
-            [l, -w, h],
-            [l, w, h],
-            [-l, w, h],
-        ]
-    )
-
-    # 应用旋转和平移
-    vertices = vertices @ rotation_matrix.T + center
-
-    # 定义12条边的连接关系
-    lines = [
-        [0, 1],
-        [1, 2],
-        [2, 3],
-        [3, 0],  # 底面
-        [4, 5],
-        [5, 6],
-        [6, 7],
-        [7, 4],  # 顶面
-        [0, 4],
-        [1, 5],
-        [2, 6],
-        [3, 7],  # 侧面
-    ]
-
-    # 创建线框
-    line_set = o3d.geometry.LineSet()
-    line_set.points = o3d.utility.Vector3dVector(vertices)
-    line_set.lines = o3d.utility.Vector2iVector(lines)
-    line_set.colors = o3d.utility.Vector3dVector([color for _ in range(len(lines))])
-
-    return line_set
-
 
 def create_3d_bbox(bbox_3d, color=(1, 0, 0)):
     """创建3D检测框线框"""
@@ -140,6 +85,7 @@ def offscreen_visualization_array(
     gt_boxes=None,
     ref_boxes=None,
     output_image="point_cloud.png",
+    box_colormap=None,
     zoom=0.25,
 ):
 
@@ -220,7 +166,6 @@ def visualization_array_pyvista(
     gt_boxes=None,
     ref_boxes=None,
     output_image="point_cloud.png",
-    zoom=0.25,
     class_names=None,
     box_colormap=None,
     off_screen=False,
@@ -242,10 +187,10 @@ def visualization_array_pyvista(
 
     # 添加点云
     point_cloud = pv.PolyData(xyz)
-    plotter.add_points(point_cloud, color="white", point_size=2.0)
+    plotter.add_points(point_cloud, color="white", point_size=1.0)
 
     # 绘制bbox函数
-    def draw_bbox(center, size, yaw, color=(1, 0, 0), label_text=None):
+    def draw_bbox(center, size, yaw, color=(1, 0, 0), label_text=None,labe_pos_shift=0):
         cube = pv.Cube(
             center=(0, 0, 0), x_length=size[0], y_length=size[1], z_length=size[2]
         )
@@ -253,13 +198,13 @@ def visualization_array_pyvista(
         cube.translate(center, inplace=True)
         plotter.add_mesh(cube, color=color, style="wireframe", line_width=2)
         if label_text is not None:
-            label_pos = center + np.array([0, 0, size[2] / 2 + 0.5])
+            label_pos = center + np.array([0, 1.0+labe_pos_shift, size[2] / 2 + 0.5])
             plotter.add_point_labels(
                 np.array([label_pos]),
                 [label_text],
                 font_size=10,
-                text_color="yellow",
-                point_color="yellow",
+                text_color=color,
+                point_color=color,
             )
 
     # 添加 gt_boxes（红色）
@@ -270,27 +215,50 @@ def visualization_array_pyvista(
             yaw = bbox[6]
             label = int(bbox[7]) if bbox.shape[0] >= 8 else 0
             name = class_names[label] if class_names else f"gt_{label}"
-            draw_bbox(center, size, yaw, color="red", label_text=name)
+            draw_bbox(center, size, yaw, color="red",label_text=name,labe_pos_shift=1.5)
 
-    # # 添加 ref_boxes（使用颜色映射）
-    # if ref_boxes is not None:
-    #     for i, bbox in enumerate(ref_boxes):
-    #         center = bbox[:3]
-    #         size = bbox[3:6]
-    #         yaw = bbox[6]
-    #         label = int(bbox[7]) if bbox.shape[0] >= 8 else 0
-    #         color = box_colormap[label] if box_colormap and label in box_colormap else (0, 1, 0)
-    #         name = class_names[label] if class_names else f"pred_{label}"
-    #         draw_bbox(center, size, yaw, color=color, label_text=name)
+    # 添加 ref_boxes（使用颜色映射）
+    if ref_boxes is not None:
+        for i, bbox in enumerate(ref_boxes):
+            center = bbox[:3]
+            size = bbox[3:6]
+            yaw = bbox[6]
+            label = int(bbox[7]) if bbox.shape[0] >= 8 else 0
+            score= bbox[8] if bbox.shape[0] >= 9 else 0
+            # color = box_colormap[label]
+            color="lime"
+            name = class_names[label] if class_names else f"pred_{label}"
+            label_text=name+f":{score:.2f}"
+            draw_bbox(center, size, yaw, color=color, label_text=label_text)
 
     # 添加坐标轴
     plotter.add_axes(line_width=2)
-
+    
     # 设置视角
     plotter.camera_position = "xy"  # 可以是 'xy', 'xz', 'yz', 'iso'
+    plotter.camera.zoom(2.0)  # 放大2倍
 
+
+    # 添加两行不同颜色的文本（使用规范化坐标定位）
+    # plotter.add_text(
+    #     "Red is groundtruth",
+    #     position=(0.02, 0.95),  # 左上角位置 (x,y)，范围[0,1]
+    #     font_size=15,
+    #     color="red",            # 红色文本
+    #     font="arial",
+    #     shadow=True
+    # )
+
+    # plotter.add_text(
+    #     "Green is Prediction", 
+    #     position=(0.02, 0.8),  # 上一行下方
+    #     font_size=15,
+    #     color="green",          # 绿色文本
+    #     font="arial",
+    #     shadow=True
+    # )
     # 保存图像
     os.makedirs(os.path.dirname(output_image), exist_ok=True)
-    plotter.show()
-    # plotter.show(screenshot=output_image)
-    # plotter.close()
+    # plotter.show()
+    plotter.show(screenshot=output_image)
+    plotter.close()

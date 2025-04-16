@@ -14,7 +14,7 @@ except:
 
 import numpy as np
 import torch
-from visual_utils.visualize_tools import offscreen_visualization_array,visualization_array_pyvista
+from visual_utils.visualize_tools import offscreen_visualization_array,visualization_array_pyvista,class_names
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
@@ -22,6 +22,7 @@ from pcdet.utils import common_utils
 from pcdet.datasets import build_dataloader
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from tqdm import tqdm
+from visual_utils.open3d_vis_utils import box_colormap
 class DemoDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,dataset_mode='kl'):
         """
@@ -224,7 +225,7 @@ def main():
             batch_size=1,
             dist=dist_test, workers=args.workers, logger=logger, training=False
         )
-
+        
 
         model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
         model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
@@ -248,22 +249,30 @@ def main():
                 
                 if args.save_to_file:
                     timestamp= batch_dict['timestamp'][0]
-                    folder="../result/demo/"+batch_dict['folder'][0]
+                    dataset_name=cfg.EXP_GROUP_PATH
+                    model_name=cfg.TAG
+                    folder=f"../result/{dataset_name}/{model_name}/{batch_dict['folder'][0]}"
                     pred_result_name=folder+"/"+timestamp+".txt"
                     SaveBoxPred(boxes_label_score,pred_result_name)
                     output_image=folder+"/"+timestamp+".png"
                     gt_boxes=batch_dict['gt_boxes'][0]
+
                     # offscreen_visualization_array(
                     #     batch_dict['points'][:, 1:],
                     #     ref_boxes=boxes_label,
                     #     gt_boxes=gt_boxes,
+                    #     box_colormap=box_colormap,
                     #     output_image=output_image
                     # )
                     visualization_array_pyvista(
                         batch_dict['points'][:, 1:],
-                        ref_boxes=boxes_label,
+                        ref_boxes=boxes_label_score,
                         gt_boxes=gt_boxes,
-                        output_image=output_image
+                        output_image=output_image,
+                        class_names=class_names,
+                        box_colormap=box_colormap,
+                        off_screen=True
+                        
                     )
                 else:
                     V.draw_scenes(

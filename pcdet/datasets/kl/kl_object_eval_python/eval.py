@@ -709,19 +709,19 @@ def get_kl_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict=None)
     min_overlaps=np.expand_dims(overlap_0_7, axis=0)
     
     class_to_name = {
-        0: "Car",
-        1: "Pedestrian",
-        2: "Truck",
-        3: "IGV-Full",
-        4: "IGV-Empty",
-        5: "Cone",
-        6: "OtherVehicle",
-        7: "Trailer-Empty",
-        8: "Trailer-Full",
-        9: "Lorry",
+        0: "Pedestrian",
+        1: "Car",
+        2: "IGV-Full",
+        3: "Truck",
+        4: "Trailer-Empty",
+        5: "Trailer-Full",
+        6: "IGV-Empty",
+        7: "Crane",
+        8: "OtherVehicle",
+        9: "Cone",
         10: "ContainerForklift",
-        11: "Crane",
-        12: "Forklift",
+        11: "Forklift",
+        12: "Lorry",
         13: "ConstructionVehicle"
     }
     name_to_class = {v: n for n, v in class_to_name.items()}

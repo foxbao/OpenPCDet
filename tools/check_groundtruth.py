@@ -12,6 +12,7 @@ from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_f
 
 from tqdm import tqdm
 from visual_utils.visualize_tools import offscreen_visualization_array,visualization_array_pyvista
+from visual_utils.open3d_vis_utils import box_colormap
 
 
 def parse_config():
@@ -124,7 +125,8 @@ def main():
         offscreen_visualization_array(
             points,
             gt_boxes=gt_boxes,
-            output_image=output_image
+            output_image=output_image,
+            box_colormap=box_colormap
         )
 
     val_set, val_loader, sampler = build_dataloader(
@@ -146,7 +148,9 @@ def main():
         offscreen_visualization_array(
             points,
             gt_boxes=gt_boxes,
-            output_image=output_image
+            output_image=output_image,
+            box_colormap=box_colormap
+            
         )
 
 

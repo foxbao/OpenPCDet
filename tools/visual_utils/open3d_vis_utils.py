@@ -14,9 +14,12 @@ import numpy as np
 #     [0, 1, 1],
 #     [1, 1, 0],
 # ]
+
+# dataset.py中，对label有一个+1的操作，所以这里的label从1开始，颜色也要从1开始
+# gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
 box_colormap = [
     (1, 1, 1),
-    (0.3, 0.5, 0.8),  # 天蓝, Pedestrian，因为数据集里面会对每个label+1
+    (0.3, 0.5, 0.8),  # 天蓝, Pedestrian，因为数据集里面会对每个label+1,
     (0, 1, 0),        # 绿色，Car 
     (0, 0, 1),        # 蓝色，IGV-Full 
     (1, 1, 0),        # 黄色，Truck
