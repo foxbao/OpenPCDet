@@ -3,6 +3,12 @@ import torch
 from ...ops.iou3d_nms import iou3d_nms_utils
 
 
+def multi_classes_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+    src_box_scores = box_scores
+    
+    raise NotImplementedError
+
+
 def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
     src_box_scores = box_scores
     if score_thresh is not None:

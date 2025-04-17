@@ -184,22 +184,23 @@ def main():
 
     eval_output_dir = output_dir / 'eval'
 
+
     # 单文件输入模式
     if args.data_path:
-        demo_dataset = DemoDataset(
+        test_set = DemoDataset(
             dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
             root_path=Path(args.data_path),  logger=logger
         )
-        logger.info(f'Total number of samples: \t{len(demo_dataset)}')
+        logger.info(f'Total number of samples: \t{len(test_set)}')
 
-        model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
+        model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
         model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
         model.cuda()
         model.eval()
         with torch.no_grad():
-            for idx, data_dict in enumerate(demo_dataset):
+            for idx, data_dict in enumerate(test_set):
                 logger.info(f'Visualized sample index: \t{idx + 1}')
-                data_dict = demo_dataset.collate_batch([data_dict])
+                data_dict = test_set.collate_batch([data_dict])
                 load_data_to_gpu(data_dict)
                 pred_dicts, _ = model.forward(data_dict)
                 print('detected ',pred_dicts[0]['pred_boxes'].size()[0],' objects')
@@ -226,13 +227,15 @@ def main():
             dist=dist_test, workers=args.workers, logger=logger, training=False
         )
         
-
+        logger.info(f'Total number of samples: \t{len(test_set)}')
+        
         model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
         model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
         model.cuda()
         model.eval()
         with torch.no_grad():
-            for idx, batch_dict in enumerate(tqdm(test_loader)):
+            for idx, data_dict in enumerate(tqdm(test_set)):
+                batch_dict = test_set.collate_batch([data_dict])
                 load_data_to_gpu(batch_dict)
                 pred_dicts, _ = model.forward(batch_dict)
                 mask = pred_dicts[0]['pred_scores'] > 0.01
@@ -246,24 +249,15 @@ def main():
                 boxes_label = torch.cat((filtered_boxes, filtered_labels.unsqueeze(1)), dim=1)
                 boxes_label_score= torch.cat((boxes_label, filtered_scores.unsqueeze(1)), dim=1)
 
-                
+                timestamp= batch_dict['timestamp'][0]
+                dataset_name=cfg.EXP_GROUP_PATH
+                model_name=cfg.TAG
+                folder=f"../result/{dataset_name}/{model_name}/{batch_dict['folder'][0]}"
+                output_image=folder+"/"+timestamp+".png"
+                gt_boxes=batch_dict['gt_boxes'][0]
                 if args.save_to_file:
-                    timestamp= batch_dict['timestamp'][0]
-                    dataset_name=cfg.EXP_GROUP_PATH
-                    model_name=cfg.TAG
-                    folder=f"../result/{dataset_name}/{model_name}/{batch_dict['folder'][0]}"
                     pred_result_name=folder+"/"+timestamp+".txt"
                     SaveBoxPred(boxes_label_score,pred_result_name)
-                    output_image=folder+"/"+timestamp+".png"
-                    gt_boxes=batch_dict['gt_boxes'][0]
-
-                    # offscreen_visualization_array(
-                    #     batch_dict['points'][:, 1:],
-                    #     ref_boxes=boxes_label,
-                    #     gt_boxes=gt_boxes,
-                    #     box_colormap=box_colormap,
-                    #     output_image=output_image
-                    # )
                     visualization_array_pyvista(
                         batch_dict['points'][:, 1:],
                         ref_boxes=boxes_label_score,
@@ -272,13 +266,21 @@ def main():
                         class_names=class_names,
                         box_colormap=box_colormap,
                         off_screen=True
-                        
                     )
                 else:
-                    V.draw_scenes(
-                        points=batch_dict['points'][:, 1:], gt_boxes=batch_dict['gt_boxes'][0],ref_boxes=filtered_boxes,
-                        ref_scores=filtered_scores, ref_labels=filtered_labels
+                    visualization_array_pyvista(
+                        batch_dict['points'][:, 1:],
+                        ref_boxes=boxes_label_score,
+                        gt_boxes=gt_boxes,
+                        output_image=output_image,
+                        class_names=class_names,
+                        box_colormap=box_colormap,
+                        off_screen=False
                     )
+                    # V.draw_scenes(
+                    #     points=batch_dict['points'][:, 1:], gt_boxes=batch_dict['gt_boxes'][0],ref_boxes=filtered_boxes,
+                    #     ref_scores=filtered_scores, ref_labels=filtered_labels
+                    # )
                 if not OPEN3D_FLAG:
                     mlab.show(stop=True)
 
