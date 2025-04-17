@@ -267,18 +267,18 @@ MODEL:
     OUTPUT_RAW_SCORE: False
     MULTI_CLASSES_SCORE_THRESH:
       [
-        "Pedestrian:0.5",
+        "Pedestrian:0.4",
         "Car:0.5",
         "IGV-Full:0.5",
-        "Truck:0.15",
+        "Truck:0.30",
         "Trailer-Empty:0.5",
         "Trailer-Full:0.5",
         "IGV-Empty:0.5",
-        "Crane:0.5",
+        "Crane:0.3",
         "OtherVehicle:0.5",
         "Cone:0.5",
-        "ContainerForklift:0.5",
-        "Forklift:0.5",
+        "ContainerForklift:0.3",
+        "Forklift:0.3",
         "Lorry:0.5",
         "ConstructionVehicle:0.5",
       ]
