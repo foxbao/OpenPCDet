@@ -15,7 +15,7 @@
                 "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","cfgs/kitti_models/center_point.yaml"
+                "--cfg_file","cfgs/kitti_models/centerpoint.yaml"
             ],
             "justMyCode": false
         }

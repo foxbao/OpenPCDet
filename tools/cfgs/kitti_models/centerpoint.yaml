@@ -59,7 +59,7 @@ MODEL:
             }
         POST_PROCESSING:
             SCORE_THRESH: 0.1
-            POST_CENTER_LIMIT_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+            POST_CENTER_LIMIT_RANGE: [0, -40, -3, 70.4, 40, 1]
             MAX_OBJ_PER_SAMPLE: 500
             NMS_CONFIG:
                 NMS_TYPE: nms_gpu
@@ -69,7 +69,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.9
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -83,8 +83,8 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 8
-    NUM_EPOCHS: 80
+    BATCH_SIZE_PER_GPU: 12
+    NUM_EPOCHS: 200
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
