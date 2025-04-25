@@ -255,13 +255,13 @@ class Detector3DTemplate(nn.Module):
                 else:
                     label_preds = label_preds + 1 
                     
-                if post_process_cfg.MULTI_CLASSES_SCORE_THRESH:
-                    selected, selected_scores = model_nms_utils.multi_classes_agnostic_nms(
+                if hasattr(post_process_cfg, 'MULTI_CLASSES_SCORE_THRESH_BAO'):
+                    selected, selected_scores = model_nms_utils.multi_classes_agnostic_nms_bao(
                         box_scores=cls_preds, box_preds=box_preds,
                         label_preds=label_preds,
                         nms_config=post_process_cfg.NMS_CONFIG,
                         score_thresh=post_process_cfg.SCORE_THRESH,
-                        multi_classes_score_thresh=post_process_cfg.MULTI_CLASSES_SCORE_THRESH
+                        multi_classes_score_thresh=post_process_cfg.MULTI_CLASSES_SCORE_THRESH_BAO
                     )
                 else:
                     selected, selected_scores = model_nms_utils.class_agnostic_nms(

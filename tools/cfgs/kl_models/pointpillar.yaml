@@ -121,13 +121,12 @@ MODEL:
     DIR_LIMIT_OFFSET: 0.0
     NUM_DIR_BINS: 2
 
-    ANCHOR_GENERATOR_CONFIG:
-      [
+    ANCHOR_GENERATOR_CONFIG: [
         {
           "class_name": "Pedestrian",
           "anchor_sizes": [[0.8, 0.6, 1.73]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-0.6],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.5,
@@ -137,7 +136,7 @@ MODEL:
           "class_name": "Car",
           "anchor_sizes": [[3.9, 1.6, 1.56]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.78],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.6,
@@ -147,7 +146,7 @@ MODEL:
           "class_name": "IGV-Full",
           "anchor_sizes": [[10.5, 2.94, 3.47]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.0],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.6,
@@ -157,7 +156,7 @@ MODEL:
           "class_name": "Truck",
           "anchor_sizes": [[6.93, 2.51, 2.84]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.2],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.6,
@@ -167,7 +166,7 @@ MODEL:
           "class_name": "Trailer-Empty",
           "anchor_sizes": [[12.29, 2.90, 3.87]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.2],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.5,
@@ -177,7 +176,7 @@ MODEL:
           "class_name": "Trailer-Full",
           "anchor_sizes": [[12.29, 2.90, 3.87]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.2],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.5,
@@ -187,7 +186,7 @@ MODEL:
           "class_name": "IGV-Empty",
           "anchor_sizes": [[10.5, 2.94, 3.47]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.0],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.55,
@@ -197,26 +196,47 @@ MODEL:
           "class_name": "Crane",
           "anchor_sizes": [[10.5, 2.94, 3.47]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.5],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.55,
           "unmatched_threshold": 0.4,
         },
-        { "class_name": "OtherVehicle", "anchor_sizes": [
-              [4.0, 1.8, 1.5],
-            ], "anchor_rotations": [0, 1.57], "anchor_bottom_heights": [-1.0], "align_center": False, "feature_map_stride": 2, "matched_threshold": 0.5, "unmatched_threshold": 0.35 }, # 假设尺寸
-        { "class_name": "Cone", "anchor_sizes": [
-              [0.5, 0.5, 1.0],
-            ], "anchor_rotations": [0, 1.57], "anchor_bottom_heights": [-0.3], "align_center": False, "feature_map_stride": 2, "matched_threshold": 0.5, "unmatched_threshold": 0.35 }, # 假设尺寸
-        { "class_name": "ContainerForklift", "anchor_sizes": [
-              [5.0, 2.0, 5.0],
-            ], "anchor_rotations": [0, 1.57], "anchor_bottom_heights": [-1.0], "align_center": False, "feature_map_stride": 2, "matched_threshold": 0.5, "unmatched_threshold": 0.35 }, # 假设尺寸
+        {
+          "class_name": "OtherVehicle",
+          "anchor_sizes": [[4.0, 1.8, 1.5]],
+          "anchor_rotations": [0, 1.57],
+          "anchor_bottom_heights": [-1.6],
+          "align_center": False,
+          "feature_map_stride": 2,
+          "matched_threshold": 0.5,
+          "unmatched_threshold": 0.35,
+        }, # 假设尺寸
+        {
+          "class_name": "Cone",
+          "anchor_sizes": [[0.5, 0.5, 1.0]],
+          "anchor_rotations": [0, 1.57],
+          "anchor_bottom_heights": [-1.6],
+          "align_center": False,
+          "feature_map_stride": 2,
+          "matched_threshold": 0.5,
+          "unmatched_threshold": 0.35,
+        }, # 假设尺寸
+        {
+          "class_name": "ContainerForklift",
+          "anchor_sizes": [[5.0, 2.0, 5.0]],
+          "anchor_rotations": [0, 1.57],
+          "anchor_bottom_heights": [-1.6],
+          "align_center": False,
+          "feature_map_stride": 2,
+          "matched_threshold": 0.5,
+          "unmatched_threshold": 0.35,
+        }, # 假设尺寸
         {
           "class_name": "Forklift",
           "anchor_sizes": [[1.76, 1.0, 1.73]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.0],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.5,
@@ -226,7 +246,7 @@ MODEL:
           "class_name": "Lorry",
           "anchor_sizes": [[6.93, 2.51, 2.84]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.2],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.5,
@@ -236,7 +256,7 @@ MODEL:
           "class_name": "ConstructionVehicle",
           "anchor_sizes": [[6.93, 2.51, 2.84]],
           "anchor_rotations": [0, 1.57],
-          "anchor_bottom_heights": [-1.5],
+          "anchor_bottom_heights": [-1.6],
           "align_center": False,
           "feature_map_stride": 2,
           "matched_threshold": 0.5,
@@ -265,12 +285,12 @@ MODEL:
     RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
     SCORE_THRESH: 0.2
     OUTPUT_RAW_SCORE: False
-    MULTI_CLASSES_SCORE_THRESH:
+    MULTI_CLASSES_SCORE_THRESH_BAO:
       [
         "Pedestrian:0.4",
         "Car:0.5",
         "IGV-Full:0.5",
-        "Truck:0.30",
+        "Truck:0.40",
         "Trailer-Empty:0.5",
         "Trailer-Full:0.5",
         "IGV-Empty:0.5",
@@ -287,13 +307,13 @@ MODEL:
     NMS_CONFIG:
       MULTI_CLASSES_NMS: False
       NMS_TYPE: nms_gpu
-      NMS_THRESH: 0.5
+      NMS_THRESH: 0.2
       NMS_PRE_MAXSIZE: 4096
       NMS_POST_MAXSIZE: 500
 
 OPTIMIZATION:
   BATCH_SIZE_PER_GPU: 4
-  NUM_EPOCHS: 100
+  NUM_EPOCHS: 200
 
   OPTIMIZER: adam_onecycle
   LR: 0.003

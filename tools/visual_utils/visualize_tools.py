@@ -202,7 +202,7 @@ def visualization_array_pyvista(
             plotter.add_point_labels(
                 np.array([label_pos]),
                 [label_text],
-                font_size=10,
+                font_size=15,
                 text_color=color,
                 point_color=color,
             )

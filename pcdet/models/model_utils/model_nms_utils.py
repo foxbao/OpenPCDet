@@ -3,7 +3,7 @@ import torch
 from ...ops.iou3d_nms import iou3d_nms_utils
 
 
-def multi_classes_agnostic_nms(box_scores, box_preds, label_preds,nms_config, score_thresh=None,multi_classes_score_thresh=None):
+def multi_classes_agnostic_nms_bao(box_scores, box_preds, label_preds,nms_config, score_thresh=None,multi_classes_score_thresh=None):
     src_box_scores = box_scores
     if multi_classes_score_thresh is not None:
         # 构建每个box的分数阈值，按label_preds映射

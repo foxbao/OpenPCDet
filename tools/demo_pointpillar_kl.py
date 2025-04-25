@@ -69,9 +69,6 @@ class DemoDataset(DatasetTemplate):
             # intensity = data[:, 3]
         else:
             raise NotImplementedError
-        # print("Points shape:", points.shape)
-        # print("Min x:", points[:, 0].min())
-        # print("Max x:", points[:, 0].max())
         if self.dataset_mode=='kl':
             points = points[:, :self.feature_num]
 
@@ -81,9 +78,6 @@ class DemoDataset(DatasetTemplate):
         }
 
         data_dict = self.prepare_data(data_dict=input_dict)
-        # print("Points shape:", data_dict['points'].shape)
-        # print("Min x:", data_dict['points'][:, 0].min())
-        # print("Max x:", data_dict['points'][:, 0].max())
         return data_dict
 
 

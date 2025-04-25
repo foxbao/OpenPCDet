@@ -16,62 +16,79 @@ CLASS_NAMES:
     "ConstructionVehicle",
   ]
 
-DATA_CONFIG: 
-    _BASE_CONFIG_: cfgs/dataset_configs/kl_dataset.yaml
-    POINT_CLOUD_RANGE: [-69.12, -39.68, -3, 69.12, 39.68, 1]
-    DATA_PROCESSOR:
-        - NAME: mask_points_and_boxes_outside_range
-          REMOVE_OUTSIDE_BOXES: True
+DATA_CONFIG:
+  _BASE_CONFIG_: cfgs/dataset_configs/kl_dataset.yaml
+  POINT_CLOUD_RANGE: [-70.4, -40, -3, 70.4, 40, 1]
+  DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True
 
-        - NAME: shuffle_points
-          SHUFFLE_ENABLED: {
-            'train': True,
-            'test': False
+    - NAME: shuffle_points
+      SHUFFLE_ENABLED: { "train": True, "test": False }
+
+    - NAME: transform_points_to_voxels
+      VOXEL_SIZE: [0.05, 0.05, 0.1]
+      MAX_POINTS_PER_VOXEL: 32
+      MAX_NUMBER_OF_VOXELS: { "train": 16000, "test": 40000 }
+  DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ["placeholder"]
+    AUG_CONFIG_LIST:
+      - NAME: gt_sampling
+        USE_ROAD_PLANE: False
+        DB_INFO_PATH:
+          - kl_dbinfos.pkl
+        PREPARE:
+          {
+            filter_by_min_points:
+              [
+                "Pedestrian:5",
+                "Car:5",
+                "IGV-Full:5",
+                "Truck:5",
+                "Trailer-Empty:5",
+                "Trailer-Full:5",
+                "IGV-Empty:5",
+                "Crane:5",
+                "OtherVehicle:5",
+                "Cone:5",
+                "ContainerForklift:5",
+                "Forklift:5",
+                "Lorry:5",
+                "ConstructionVehicle:5",
+              ],
+            filter_by_difficulty: [-1],
           }
 
-        - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.05, 0.05, 0.1]
-          MAX_POINTS_PER_VOXEL: 32
-          MAX_NUMBER_OF_VOXELS: {
-            'train': 16000,
-            'test': 40000
-          }
-    DATA_AUGMENTOR:
-        DISABLE_AUG_LIST: ['placeholder']
-        AUG_CONFIG_LIST:
-            - NAME: gt_sampling
-              USE_ROAD_PLANE: False
-              DB_INFO_PATH:
-                  - kl_dbinfos.pkl
-              PREPARE: {
-                filter_by_min_points: [
-                    'Pedestrian:5', 'Car:5', 'IGV-Full:5', 'Truck:5',
-                    'Trailer-Empty:5', 'Trailer-Full:5',
-                    'IGV-Empty:5', 'Crane:5', 'OtherVehicle:5', 'Cone:5',
-                    'ContainerForklift:5', 'Forklift:5', 'Lorry:5', 'ConstructionVehicle:5'
-                ],
-                 filter_by_difficulty: [-1],
-              }
+        SAMPLE_GROUPS:
+          [
+            "Pedestrian:15",
+            "Car:15",
+            "IGV-Full:15",
+            "Truck:15",
+            "Trailer-Empty:15",
+            "Trailer-Full:15",
+            "IGV-Empty:15",
+            "Crane:15",
+            "OtherVehicle:15",
+            "Cone:15",
+            "ContainerForklift:15",
+            "Forklift:15",
+            "Lorry:15",
+            "ConstructionVehicle:15",
+          ]
+        NUM_POINT_FEATURES: 4
+        DATABASE_WITH_FAKELIDAR: False
+        REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+        LIMIT_WHOLE_SCENE: False
 
-              SAMPLE_GROUPS: [
-                'Pedestrian:15', 'Car:15', 'IGV-Full:15', 'Truck:15',
-                'Trailer-Empty:15', 'Trailer-Full:15',
-                'IGV-Empty:15', 'Crane:15', 'OtherVehicle:15', 'Cone:15',
-                'ContainerForklift:15', 'Forklift:15', 'Lorry:15', 'ConstructionVehicle:15'
-              ]
-              NUM_POINT_FEATURES: 4
-              DATABASE_WITH_FAKELIDAR: False
-              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
-              LIMIT_WHOLE_SCENE: False
+      - NAME: random_world_flip
+        ALONG_AXIS_LIST: ["x"]
 
-            - NAME: random_world_flip
-              ALONG_AXIS_LIST: ['x']
+      - NAME: random_world_rotation
+        WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
 
-            - NAME: random_world_rotation
-              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
-
-            - NAME: random_world_scaling
-              WORLD_SCALE_RANGE: [0.95, 1.05]
+      - NAME: random_world_scaling
+        WORLD_SCALE_RANGE: [0.95, 1.05]
 
 MODEL:
   NAME: CenterPoint
@@ -89,11 +106,11 @@ MODEL:
   BACKBONE_2D:
     NAME: BaseBEVBackbone
 
-    LAYER_NUMS: [5]
-    LAYER_STRIDES: [1]
-    NUM_FILTERS: [128]
-    UPSAMPLE_STRIDES: [2]
-    NUM_UPSAMPLE_FILTERS: [256]
+    LAYER_NUMS: [5,5]
+    LAYER_STRIDES: [1,2]
+    NUM_FILTERS: [128,256]
+    UPSAMPLE_STRIDES: [1,2]
+    NUM_UPSAMPLE_FILTERS: [256,256]
 
   DENSE_HEAD:
     NAME: CenterHead
@@ -101,20 +118,22 @@ MODEL:
 
     CLASS_NAMES_EACH_HEAD:
       [
-        ["Pedestrian",
-        "Car",
-        "IGV-Full",
-        "Truck",
-        "Trailer-Empty",
-        "Trailer-Full",
-        "IGV-Empty",
-        "Crane",
-        "OtherVehicle",
-        "Cone",
-        "ContainerForklift",
-        "Forklift",
-        "Lorry",
-        "ConstructionVehicle"]
+        [
+          "Pedestrian",
+          "Car",
+          "IGV-Full",
+          "Truck",
+          "Trailer-Empty",
+          "Trailer-Full",
+          "IGV-Empty",
+          "Crane",
+          "OtherVehicle",
+          "Cone",
+          "ContainerForklift",
+          "Forklift",
+          "Lorry",
+          "ConstructionVehicle",
+        ],
       ]
 
     SHARED_CONV_CHANNEL: 64
@@ -122,10 +141,12 @@ MODEL:
     NUM_HM_CONV: 2 #  heatmap
     SEPARATE_HEAD_CFG:
       HEAD_ORDER: ["center", "center_z", "dim", "rot"]
-      HEAD_DICT: { "center": {
-              "out_channels": 2,
-              "num_conv": 2,
-            }, "center_z": { "out_channels": 1, "num_conv": 2 }, "dim": { "out_channels": 3, "num_conv": 2 }, "rot": { "out_channels": 2, "num_conv": 2 } } # offset
+      HEAD_DICT: {
+          "center": { "out_channels": 2, "num_conv": 2 },
+          "center_z": { "out_channels": 1, "num_conv": 2 },
+          "dim": { "out_channels": 3, "num_conv": 2 },
+          "rot": { "out_channels": 2, "num_conv": 2 },
+        } # offset
 
     TARGET_ASSIGNER_CONFIG:
       FEATURE_MAP_STRIDE: 4
@@ -141,8 +162,8 @@ MODEL:
           "code_weights": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         }
     POST_PROCESSING:
-      SCORE_THRESH: 0.1
-      POST_CENTER_LIMIT_RANGE: [-69.12, -39.68, -3, 69.12, 39.68, 1]
+      SCORE_THRESH: 0.5
+      POST_CENTER_LIMIT_RANGE: [-70.4, -40, -3, 70.4, 40, 1]
       MAX_OBJ_PER_SAMPLE: 500
       NMS_CONFIG:
         NMS_TYPE: nms_gpu
@@ -152,7 +173,7 @@ MODEL:
 
   POST_PROCESSING:
     RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-    SCORE_THRESH: 0.5
+    SCORE_THRESH: 0.4
     OUTPUT_RAW_SCORE: False
 
     EVAL_METRIC: kitti
@@ -160,13 +181,13 @@ MODEL:
     NMS_CONFIG:
       MULTI_CLASSES_NMS: False
       NMS_TYPE: nms_gpu
-      NMS_THRESH: 0.01
+      NMS_THRESH: 0.1
       NMS_PRE_MAXSIZE: 4096
       NMS_POST_MAXSIZE: 500
 
 OPTIMIZATION:
   BATCH_SIZE_PER_GPU: 8
-  NUM_EPOCHS: 80
+  NUM_EPOCHS: 100
 
   OPTIMIZER: adam_onecycle
   LR: 0.003

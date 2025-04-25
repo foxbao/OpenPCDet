@@ -19,11 +19,11 @@ MODEL:
     BACKBONE_2D:
         NAME: BaseBEVBackbone
 
-        LAYER_NUMS: [5]
-        LAYER_STRIDES: [1]
-        NUM_FILTERS: [128]
-        UPSAMPLE_STRIDES: [2]
-        NUM_UPSAMPLE_FILTERS: [256]
+        LAYER_NUMS: [5,5]
+        LAYER_STRIDES: [1,2]
+        NUM_FILTERS: [128,256]
+        UPSAMPLE_STRIDES: [1,2]
+        NUM_UPSAMPLE_FILTERS: [256,256]
 
     DENSE_HEAD:
         NAME: CenterHead
@@ -58,7 +58,7 @@ MODEL:
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
         POST_PROCESSING:
-            SCORE_THRESH: 0.1
+            SCORE_THRESH: 0.5
             POST_CENTER_LIMIT_RANGE: [0, -40, -3, 70.4, 40, 1]
             MAX_OBJ_PER_SAMPLE: 500
             NMS_CONFIG:
@@ -83,7 +83,7 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 12
+    BATCH_SIZE_PER_GPU: 16
     NUM_EPOCHS: 200
 
     OPTIMIZER: adam_onecycle
