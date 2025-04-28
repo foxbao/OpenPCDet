@@ -118,23 +118,41 @@ MODEL:
 
     CLASS_NAMES_EACH_HEAD:
       [
-        [
-          "Pedestrian",
-          "Car",
-          "IGV-Full",
-          "Truck",
-          "Trailer-Empty",
-          "Trailer-Full",
-          "IGV-Empty",
-          "Crane",
-          "OtherVehicle",
-          "Cone",
-          "ContainerForklift",
-          "Forklift",
-          "Lorry",
-          "ConstructionVehicle",
-        ],
+        ["Car"],                         # head 1: 行人和小车类
+        ["IGV-Full", "IGV-Empty"],                    # head 2: IGV相关
+        ["Truck", "Lorry", "ConstructionVehicle"],    # head 3: 工程与货车类
+        ["Trailer-Empty", "Trailer-Full"],            # head 4: 拖车类
+        ["Crane", "ContainerForklift", "Forklift","OtherVehicle"],   # head 5: 起重和叉车类
+        [Pedestrian,"Cone"],                     # head 6: 其他杂项类
       ]
+
+        # CLASS_NAMES_EACH_HEAD: [
+        #     ['car'], 
+        #     ['truck', 'construction_vehicle'],
+        #     ['bus', 'trailer'],
+        #     ['barrier'],
+        #     ['motorcycle', 'bicycle'],
+        #     ['pedestrian', 'traffic_cone'],
+        # ]
+    # CLASS_NAMES_EACH_HEAD:
+    #   [
+    #     [
+    #       "Pedestrian",
+    #       "Car",
+    #       "IGV-Full",
+    #       "Truck",
+    #       "Trailer-Empty",
+    #       "Trailer-Full",
+    #       "IGV-Empty",
+    #       "Crane",
+    #       "OtherVehicle",
+    #       "Cone",
+    #       "ContainerForklift",
+    #       "Forklift",
+    #       "Lorry",
+    #       "ConstructionVehicle",
+    #     ],
+    #   ]
 
     SHARED_CONV_CHANNEL: 64
     USE_BIAS_BEFORE_NORM: True
@@ -149,7 +167,7 @@ MODEL:
         } # offset
 
     TARGET_ASSIGNER_CONFIG:
-      FEATURE_MAP_STRIDE: 4
+      FEATURE_MAP_STRIDE: 8
       NUM_MAX_OBJS: 500
       GAUSSIAN_OVERLAP: 0.1
       MIN_RADIUS: 2
@@ -186,7 +204,7 @@ MODEL:
       NMS_POST_MAXSIZE: 500
 
 OPTIMIZATION:
-  BATCH_SIZE_PER_GPU: 8
+  BATCH_SIZE_PER_GPU: 6
   NUM_EPOCHS: 100
 
   OPTIMIZER: adam_onecycle

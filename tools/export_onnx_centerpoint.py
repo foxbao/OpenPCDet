@@ -159,13 +159,21 @@ def prepare_batch_dict_from_ort_outputs(ort_outputs, output_names, batch_size=1,
     return batch_dict
 
 
+
+def save_voxel_features_hook(module, input, output):
+    module.saved_voxel_features = output['voxel_features'].clone().detach()
+    
+def save_voxel_input_hook(module, input, output):
+    # input是一个tuple
+    module.saved_voxel_input = input.clone().detach()
+
+# meanvfe_output = {}
+def meanvfe_hook(module, input, output):
+    module.output_batch_dict = {k: v.clone().detach() if isinstance(v, torch.Tensor) else v for k, v in output.items()}
+    # meanvfe_output = output  # 把forward的输出batch_dict保存下来！
+
+
 def main():
-    # 这个代码要运行，需要把pointpillar代码改一下
-        # else:
-        #     # batch_dict.pop('cls_preds_normalized', None)
-        #     # return batch_dict
-        #     pred_dicts, recall_dicts = self.post_processing(batch_dict)
-        #     return pred_dicts, recall_dicts
     args, cfg = parse_config()
 
     if args.launcher == "none":
@@ -209,6 +217,7 @@ def main():
     model = build_network(
         model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_dataset
     )
+    # 加载训练好的pth数据
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
 
     model.cuda()
@@ -216,67 +225,109 @@ def main():
 
     np.set_printoptions(threshold=np.inf)
 
+    use_dummy_data = False
     with torch.no_grad():
-        MAX_VOXELS = 12537
-        dummy_voxels = torch.zeros((MAX_VOXELS, 32, 4), dtype=torch.float32, device="cuda:0")
-        dummy_voxel_idxs = torch.zeros((MAX_VOXELS, 4), dtype=torch.int32, device="cuda:0")
-        dummy_voxel_num = torch.zeros((MAX_VOXELS,), dtype=torch.int32, device="cuda:0")
+        
+        data_input=dict()
+        if use_dummy_data:
+            MAX_VOXELS = 12537
+            dummy_voxels = torch.zeros((MAX_VOXELS, 32, 4), dtype=torch.float32, device="cuda:0")
+            dummy_voxel_idxs = torch.zeros((MAX_VOXELS, 4), dtype=torch.int32, device="cuda:0")
+            dummy_voxel_num = torch.zeros((MAX_VOXELS,), dtype=torch.int32, device="cuda:0")
 
-        dummy_input = dict()
-        dummy_input["voxels"] = dummy_voxels
-        dummy_input["voxel_num_points"] = dummy_voxel_num
-        dummy_input["voxel_coords"] = dummy_voxel_idxs
-        dummy_input["batch_size"] = 1
-
-        # result=model(dummy_input)
-        # aaaa=1
-
-        real_input=dict()
-        from pcdet.models import load_data_to_gpu
-        for i, batch_dict in enumerate(test_dataset):
-            data_dict = test_dataset.collate_batch([batch_dict])
-            load_data_to_gpu(data_dict)
-            real_input["voxels"]=data_dict["voxels"]
-            real_input["voxel_num_points"]=data_dict["voxel_num_points"].to(torch.int32)
-            real_input["voxel_coords"] = data_dict["voxel_coords"].to(torch.int32)
-            real_input["batch_size"] = data_dict["batch_size"]
-            break
+            dummy_input = dict()
+            dummy_input["voxels"] = dummy_voxels
+            dummy_input["voxel_num_points"] = dummy_voxel_num
+            dummy_input["voxel_coords"] = dummy_voxel_idxs
+            dummy_input["batch_size"] = 1
             
-        # use real input to export onnx
-        dummy_input=real_input
+            data_input=dummy_input
+        else:
+            real_input=dict()
+            from pcdet.models import load_data_to_gpu
+            for i, batch_dict in enumerate(test_dataset):
+                data_dict = test_dataset.collate_batch([batch_dict])
+                load_data_to_gpu(data_dict)
+                real_input["voxels"]=data_dict["voxels"]
+                real_input["voxel_num_points"]=data_dict["voxel_num_points"].to(torch.int32)
+                real_input["voxel_coords"] = data_dict["voxel_coords"].to(torch.int32)
+                real_input["batch_size"] = data_dict["batch_size"]
+                data_input=real_input
+                break
+        
+        MeanVFE_part=model.module_list[0]
+        VoxelResBackBone8x_part=model.module_list[1]
+        HeighCompression_part=model.module_list[2]
+        BaseBEVBackbone_part=model.module_list[3]
+        CenterHead_part=model.module_list[4]
+
+        hook_handle = MeanVFE_part.register_forward_hook(save_voxel_features_hook)
+        
+        hook_handle2 = MeanVFE_part.register_forward_hook(meanvfe_hook)
+        _ = model(data_input)
+        # _ = MeanVFE_part(data_input)
+        
+        voxel_features = MeanVFE_part.saved_voxel_features
+        print(voxel_features.shape)
+
+
         torch.onnx.export(
-            model,  # model being run
-            dummy_input,  # model input (or a tuple for multiple inputs)
+            VoxelResBackBone8x_part,  # model being run
+            MeanVFE_part.output_batch_dict,  # model input (or a tuple for multiple inputs)
             os.path.join(
-                args.out_dir, "centerpoint_raw.onnx"
+                args.out_dir, "VoxelResBackBone8x.onnx"
             ),  # where to save the model (can be a file or file-like object)
             export_params=True,  # store the trained parameter weights inside the model file
             opset_version=11,  # the ONNX version to export the model to
             do_constant_folding=True,  # whether to execute constant folding for optimization
             keep_initializers_as_inputs=True,
-            input_names=[
-                "voxels",
-                "voxel_num",
-                "voxel_idxs",
-                "batch_size",
-            ],  # the model's input names
+            # input_names=[
+            #     "voxels",
+            #     "voxel_num",
+            #     "voxel_idxs",
+            #     "batch_size",
+            # ],  # the model's input names
             # output_names=[
             #     "voxels2",
-            #     "voxel_num_points2",
-            #     "voxel_coords2",
+            #     "voxel_num_points",
+            #     "voxel_coords",
             #     "batch_size2",
-            #     "pillar_features",
-            #     "spatial_features",
-            #     "spatial_features_2d",
-            #     "batch_cls_preds",
-            #     "batch_box_preds",
-            #     # "cls_preds_normalized"
+            #     "voxel_features",
             # ],  # the model's output names
         )
+
+
+        
+        
+        # MeanVFE onnx
+        # torch.onnx.export(
+        #     MeanVFE_part,  # model being run
+        #     data_input,  # model input (or a tuple for multiple inputs)
+        #     os.path.join(
+        #         args.out_dir, "MeanVFE.onnx"
+        #     ),  # where to save the model (can be a file or file-like object)
+        #     export_params=True,  # store the trained parameter weights inside the model file
+        #     opset_version=11,  # the ONNX version to export the model to
+        #     do_constant_folding=True,  # whether to execute constant folding for optimization
+        #     keep_initializers_as_inputs=True,
+        #     input_names=[
+        #         "voxels",
+        #         "voxel_num",
+        #         "voxel_idxs",
+        #         "batch_size",
+        #     ],  # the model's input names
+        #     output_names=[
+        #         "voxels2",
+        #         "voxel_num_points",
+        #         "voxel_coords",
+        #         "batch_size2",
+        #         "voxel_features",
+        #     ],  # the model's output names
+        # )
         print("ONNX 模型导出成功！")
 
     onnx_raw = onnx.load(
-        os.path.join(args.out_dir, "centerpoint_raw.onnx")
+        os.path.join(args.out_dir, "VoxelResBackBone8x.onnx")
     )  # load onnx model
 
     # onnx_trim_post = simplify_postprocess(onnx_raw)

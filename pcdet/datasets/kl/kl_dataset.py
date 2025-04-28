@@ -304,6 +304,37 @@ def split_samples(samples):
     test_scenes=split_samples['test']
     return train_samples,val_scenes,test_scenes
 
+def analyze_kl_infos(version, data_path, save_path,with_cam=False):
+    import json
+    from . import kl_dataset_utils
+    from .kl_dataset_utils import convert_json_to_annotations
+    import tqdm
+    import numpy as np
+    from collections import Counter
+    
+    counter = Counter()
+    kl = KL(version=version, dataroot=data_path, verbose=True)
+    samples=kl.get_all_sample()
+    print('total labelled samples:',len(samples))
+    for sample in tqdm.tqdm(kl.samples, desc='create_info', dynamic_ncols=True):
+        with open(sample['label'], 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            annotations=convert_json_to_annotations(data)
+            name=annotations['name']
+            counter.update(name.tolist()) 
+
+    # progress_bar.close()
+
+    # 打印统计结果
+    print('类别统计结果:')
+    total_count = 0
+    for cls_name, count in counter.items():
+        print(f'{cls_name}: {count}')
+        total_count += count
+
+    print(f'\n所有类别的总数：{total_count}')
+    
+
 def create_kl_infos(version, data_path, save_path,with_cam=False):
     from . import kl_dataset_utils
     kl = KL(version=version, dataroot=data_path, verbose=True)
@@ -339,6 +370,18 @@ if __name__ == '__main__':
     parser.add_argument('--version', type=str, default='v1.0-trainval', help='')
     parser.add_argument('--with_cam', action='store_true', default=False, help='use camera or not')
     args = parser.parse_args()
+    
+    
+    if args.func == 'analyze_kl_infos':
+        dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
+        ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        dataset_cfg.VERSION = args.version
+        analyze_kl_infos(
+            version=dataset_cfg.VERSION,
+            data_path=ROOT_DIR / 'data' / 'kl',
+            save_path=ROOT_DIR / 'data' / 'kl',
+            with_cam=args.with_cam
+        )
 
     if args.func == 'create_kl_infos':
         dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))

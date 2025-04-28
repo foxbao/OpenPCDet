@@ -16,8 +16,8 @@
             },
             "args": [
                 "--cfg_file","cfgs/kl_models/centerpoint.yaml",
-                "--ckpt","../output/kl_models/centerpoint/default/ckpt/checkpoint_epoch_80.pth",
-                "--save_to_file"
+                "--ckpt","../output/kl_models/centerpoint/default/ckpt/checkpoint_epoch_100.pth",
+                // "--save_to_file"
             ],
             "justMyCode": false
         }

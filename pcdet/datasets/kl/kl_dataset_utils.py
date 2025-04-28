@@ -291,9 +291,10 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
     train_kl_infos = []
     val_kl_infos = []
     test_kl_infos=[]
-    progress_bar = tqdm.tqdm(total=len(kl.samples), desc='create_info', dynamic_ncols=True)
-    for index, sample in enumerate(kl.samples):
-        progress_bar.update()
+    # progress_bar = tqdm.tqdm(total=len(kl.samples), desc='create_info', dynamic_ncols=True)
+    # for index, sample in enumerate(kl.samples):
+    for sample in tqdm.tqdm(kl.samples, desc='create_info', dynamic_ncols=True):
+        # progress_bar.update()
         with open(sample['label'], 'r', encoding='utf-8') as f:
             data = json.load(f)
         # gt_boxes,gt_names,gt_subtypes,gt_boxes_token,gt_track_ids=convert_json_to_gt(data)
@@ -337,7 +338,7 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
             test_kl_infos.append(info)
         
 
-    progress_bar.close()
+    # progress_bar.close()
     return train_kl_infos, val_kl_infos,test_kl_infos
              
 
