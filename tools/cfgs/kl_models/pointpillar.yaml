@@ -283,7 +283,7 @@ MODEL:
 
   POST_PROCESSING:
     RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-    SCORE_THRESH: 0.2
+    SCORE_THRESH: 0.5
     OUTPUT_RAW_SCORE: False
     MULTI_CLASSES_SCORE_THRESH_BAO:
       [
@@ -294,7 +294,7 @@ MODEL:
         "Trailer-Empty:0.5",
         "Trailer-Full:0.5",
         "IGV-Empty:0.5",
-        "Crane:0.3",
+        "Crane:0.5",
         "OtherVehicle:0.5",
         "Cone:0.5",
         "ContainerForklift:0.3",

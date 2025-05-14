@@ -139,7 +139,7 @@ def prepare_batch_dict_from_ort_outputs(ort_outputs, output_names, batch_size=1,
     Args:
         ort_outputs: ort_session.run的输出结果列表
         output_names: ONNX模型输出名称列表，顺序与ort_outputs对应
-        batch_size: 批处理大小，默认为1
+        batch_size: prepare_batch_dict_from_ort_outputs
         cls_preds_normalized: 分类预测是否已经归一化，默认为False
     
     Returns:

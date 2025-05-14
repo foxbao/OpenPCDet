@@ -8,14 +8,18 @@
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "program": "train.py",
+            "program": "demo_pointpillar_kl.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",
             "env":{
                 "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","cfgs/kitti_models/centerpoint.yaml"
+                "--cfg_file","cfgs/kl_models/pointpillar.yaml",
+                "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_200.pth",
+                // "--data_path","data/181956.bin",
+                "--data_path","data/pcd_out_20250513",
+                "--save_to_file"
             ],
             "justMyCode": false
         }

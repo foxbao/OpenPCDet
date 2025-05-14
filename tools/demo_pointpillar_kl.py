@@ -23,6 +23,42 @@ from pcdet.datasets import build_dataloader
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from tqdm import tqdm
 from visual_utils.open3d_vis_utils import box_colormap
+
+
+def read_pcd(file_name):
+    with open(file_name, 'rb') as f:
+        lines = []
+        while True:
+            line = f.readline()
+            lines.append(line)
+            if line.startswith(b'DATA'):
+                break
+
+        header = b''.join(lines).decode('utf-8')
+        data_type = [l for l in header.split('\n') if l.startswith('DATA')][0].split()[1]
+
+        if data_type == 'ascii':
+            # 重新打开文本形式读取
+            return np.loadtxt(file_name, skiprows=len(lines))
+        elif data_type == 'binary':
+            # 解析 header 获取字段
+            fields = [l for l in header.split('\n') if l.startswith('FIELDS')][0].split()[1:]
+            size_line = [l for l in header.split('\n') if l.startswith('SIZE')][0].split()[1:]
+            count_line = [l for l in header.split('\n') if l.startswith('COUNT')][0].split()[1:]
+            width = int([l for l in header.split('\n') if l.startswith('WIDTH')][0].split()[1])
+            height = int([l for l in header.split('\n') if l.startswith('HEIGHT')][0].split()[1])
+            point_count = width * height
+
+            dtype_list = []
+            for field, size, count in zip(fields, size_line, count_line):
+                dtype_list.append((field, f'f{size}'))  # assume float for simplicity
+
+            dtype = np.dtype(dtype_list)
+            data = np.frombuffer(f.read(), dtype=dtype, count=point_count)
+            return np.vstack([data[field] for field in fields]).T
+        else:
+            raise ValueError(f"Unsupported PCD DATA type: {data_type}")
+
 class DemoDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,dataset_mode='kl'):
         """
@@ -37,7 +73,11 @@ class DemoDataset(DatasetTemplate):
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
         self.root_path = root_path
-        data_file_list = glob.glob(str(root_path / f'*{self.ext}')) if self.root_path.is_dir() else [self.root_path]
+        # data_file_list = glob.glob(str(root_path / f'*{self.ext}')) if self.root_path.is_dir() else [self.root_path]
+        if self.root_path.is_dir():
+            data_file_list = [f for f in self.root_path.iterdir() if f.is_file()]
+        else:
+            data_file_list = [self.root_path]
 
         data_file_list.sort()
         self.sample_file_list = data_file_list
@@ -64,17 +104,31 @@ class DemoDataset(DatasetTemplate):
         elif ext == '.npy':
             points = np.load(file_name)
         elif ext == '.pcd':
-            points = np.loadtxt(file_name, skiprows=11)
+            points = read_pcd(file_name)
+            # points = np.loadtxt(file_name, skiprows=11)
             # xyz = data[:, :3]
             # intensity = data[:, 3]
         else:
             raise NotImplementedError
         if self.dataset_mode=='kl':
             points = points[:, :self.feature_num]
+            # points[:,2]-=1.6
 
+        folder = os.path.dirname(file_name)  # "data"
+
+        # 取文件名（不含扩展名）
+        filename = os.path.basename(file_name)  # "1733211963.001387.pcd"
+        timestamp = os.path.splitext(filename)[0]  # "1733211963.001387"
+        empty_gt_boxes = np.zeros((0, 7), dtype=np.float32)
+        empty_gt_names = np.array([], dtype=str)
         input_dict = {
             'points': points,
             'frame_id': index,
+            'timestamp':timestamp,
+            'folder':folder,
+            'gt_boxes':empty_gt_boxes,
+            'gt_names': empty_gt_names
+            
         }
 
         data_dict = self.prepare_data(data_dict=input_dict)
@@ -179,40 +233,13 @@ def main():
     eval_output_dir = output_dir / 'eval'
 
 
+
     # 单文件输入模式
     if args.data_path:
         test_set = DemoDataset(
             dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
             root_path=Path(args.data_path),  logger=logger
         )
-        logger.info(f'Total number of samples: \t{len(test_set)}')
-
-        model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
-        model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-        model.cuda()
-        model.eval()
-        with torch.no_grad():
-            for idx, data_dict in enumerate(test_set):
-                logger.info(f'Visualized sample index: \t{idx + 1}')
-                data_dict = test_set.collate_batch([data_dict])
-                load_data_to_gpu(data_dict)
-                pred_dicts, _ = model.forward(data_dict)
-                print('detected ',pred_dicts[0]['pred_boxes'].size()[0],' objects')
-                
-                if args.save_to_file:
-                    V.save_scenes(
-                    points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                    ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
-                )
-                else:
-                    V.draw_scenes(
-                        points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                        ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
-                    )
-
-                if not OPEN3D_FLAG:
-                    mlab.show(stop=True)
-    # kl数据集的eval所有文件模式
     else:
         test_set, test_loader, sampler = build_dataloader(
             dataset_cfg=cfg.DATA_CONFIG,
@@ -221,62 +248,59 @@ def main():
             dist=dist_test, workers=args.workers, logger=logger, training=False
         )
         
-        logger.info(f'Total number of samples: \t{len(test_set)}')
-        
-        model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
-        model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-        model.cuda()
-        model.eval()
-        with torch.no_grad():
-            for idx, data_dict in enumerate(tqdm(test_set)):
-                batch_dict = test_set.collate_batch([data_dict])
-                load_data_to_gpu(batch_dict)
-                pred_dicts, _ = model.forward(batch_dict)
-                mask = pred_dicts[0]['pred_scores'] > 0.01
-                filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
-                filtered_scores = pred_dicts[0]['pred_scores'][mask]
-                filtered_labels = pred_dicts[0]['pred_labels'][mask]
-                # filtered_boxes = pred_dicts[0]['pred_boxes']
-                # filtered_scores = pred_dicts[0]['pred_scores']
-                # filtered_labels = pred_dicts[0]['pred_labels']
+    logger.info(f'Total number of samples: \t{len(test_set)}')
     
-                boxes_label = torch.cat((filtered_boxes, filtered_labels.unsqueeze(1)), dim=1)
-                boxes_label_score= torch.cat((boxes_label, filtered_scores.unsqueeze(1)), dim=1)
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
+    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
+    model.cuda()
+    model.eval()
+    with torch.no_grad():
+        for idx, data_dict in enumerate(tqdm(test_set)):
+            batch_dict = test_set.collate_batch([data_dict])
+            load_data_to_gpu(batch_dict)
+            pred_dicts, _ = model.forward(batch_dict)
+            mask = pred_dicts[0]['pred_scores'] > 0.01
+            filtered_boxes = pred_dicts[0]['pred_boxes'][mask]
+            filtered_scores = pred_dicts[0]['pred_scores'][mask]
+            filtered_labels = pred_dicts[0]['pred_labels'][mask]
 
-                timestamp= batch_dict['timestamp'][0]
-                dataset_name=cfg.EXP_GROUP_PATH
-                model_name=cfg.TAG
-                folder=f"../result/{dataset_name}/{model_name}/{batch_dict['folder'][0]}"
-                output_image=folder+"/"+timestamp+".png"
-                gt_boxes=batch_dict['gt_boxes'][0]
-                if args.save_to_file:
-                    pred_result_name=folder+"/"+timestamp+".txt"
-                    SaveBoxPred(boxes_label_score,pred_result_name)
-                    visualization_array_pyvista(
-                        batch_dict['points'][:, 1:],
-                        ref_boxes=boxes_label_score,
-                        gt_boxes=gt_boxes,
-                        output_image=output_image,
-                        class_names=class_names,
-                        box_colormap=box_colormap,
-                        off_screen=True
-                    )
-                else:
-                    visualization_array_pyvista(
-                        batch_dict['points'][:, 1:],
-                        ref_boxes=boxes_label_score,
-                        gt_boxes=gt_boxes,
-                        output_image=output_image,
-                        class_names=class_names,
-                        box_colormap=box_colormap,
-                        off_screen=False
-                    )
-                    # V.draw_scenes(
-                    #     points=batch_dict['points'][:, 1:], gt_boxes=batch_dict['gt_boxes'][0],ref_boxes=filtered_boxes,
-                    #     ref_scores=filtered_scores, ref_labels=filtered_labels
-                    # )
-                if not OPEN3D_FLAG:
-                    mlab.show(stop=True)
+            boxes_label = torch.cat((filtered_boxes, filtered_labels.unsqueeze(1)), dim=1)
+            boxes_label_score= torch.cat((boxes_label, filtered_scores.unsqueeze(1)), dim=1)
+
+            timestamp= batch_dict['timestamp'][0]
+            dataset_name=cfg.EXP_GROUP_PATH
+            model_name=cfg.TAG
+            folder=f"../result/{dataset_name}/{model_name}/{batch_dict['folder'][0]}"
+            output_image=folder+"/"+timestamp+".png"
+            gt_boxes=batch_dict['gt_boxes'][0]
+            if args.save_to_file:
+                pred_result_name=folder+"/"+timestamp+".txt"
+                SaveBoxPred(boxes_label_score,pred_result_name)
+                visualization_array_pyvista(
+                    batch_dict['points'][:, 1:],
+                    ref_boxes=boxes_label_score,
+                    gt_boxes=gt_boxes,
+                    output_image=output_image,
+                    class_names=class_names,
+                    box_colormap=box_colormap,
+                    off_screen=True
+                )
+            else:
+                visualization_array_pyvista(
+                    batch_dict['points'][:, 1:],
+                    ref_boxes=boxes_label_score,
+                    gt_boxes=gt_boxes,
+                    output_image=output_image,
+                    class_names=class_names,
+                    box_colormap=box_colormap,
+                    off_screen=False
+                )
+                # V.draw_scenes(
+                #     points=batch_dict['points'][:, 1:], gt_boxes=batch_dict['gt_boxes'][0],ref_boxes=filtered_boxes,
+                #     ref_scores=filtered_scores, ref_labels=filtered_labels
+                # )
+            if not OPEN3D_FLAG:
+                mlab.show(stop=True)
 
     logger.info('Demo done.')
 
