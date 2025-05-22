@@ -270,7 +270,7 @@ def main():
 
     with torch.no_grad():
         # MAX_VOXELS = 12537
-        MAX_VOXELS = 20000
+        MAX_VOXELS = 40000
         dummy_voxels = torch.zeros(
             (MAX_VOXELS, 32, 4), dtype=torch.float32, device="cuda:0"
         )

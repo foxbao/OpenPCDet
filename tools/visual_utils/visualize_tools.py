@@ -234,6 +234,8 @@ def visualization_array_pyvista(
     # 添加坐标轴
     plotter.add_axes(line_width=2)
     
+    draw_origin_axes(plotter, origin=[0, 0, 0], axis_length=10.0)
+    
     # 设置视角
     plotter.camera_position = "xy"  # 可以是 'xy', 'xz', 'yz', 'iso'
     plotter.camera.zoom(2.0)  # 放大2倍
