@@ -17,7 +17,7 @@
             "args": [
                 "--cfg_file","cfgs/kl_models/pointpillar.yaml",
                 "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_200.pth",
-                "--data_path","data/1733211963.001387.pcd"
+                "--data_path","tools/data/202505201008_record_merged"
             ],
             "justMyCode": false
         }

@@ -160,6 +160,32 @@ def offscreen_visualization_array(
     vis.capture_screen_image(output_image, do_render=True)
     vis.destroy_window()
 
+def draw_origin_axes(plotter, origin=[0, 0, 0], axis_length=10.0):
+    origin = np.array(origin)
+
+    # X轴 - 红色
+    x_axis = origin + np.array([axis_length, 0, 0])
+    plotter.add_lines(np.array([origin, x_axis]), color='red', width=3)
+
+    # Y轴 - 绿色
+    y_axis = origin + np.array([0, axis_length, 0])
+    plotter.add_lines(np.array([origin, y_axis]), color='green', width=3)
+
+    # Z轴 - 蓝色
+    z_axis = origin + np.array([0, 0, axis_length])
+    plotter.add_lines(np.array([origin, z_axis]), color='blue', width=3)
+
+    # 添加标签
+    plotter.add_point_labels(
+        points=np.array([x_axis, y_axis, z_axis]),
+        labels=['X', 'Y', 'Z'],
+        text_color='white',
+        font_size=20,
+        point_color=None,
+        point_size=0,
+        shape_opacity=0
+    )
+
 
 def visualization_array_pyvista(
     points_array,
