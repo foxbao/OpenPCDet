@@ -110,6 +110,15 @@ def get_transformation_matrix(pose, quat_mode='wxyz'):
     T[:3, 3] = translation
     return T
 
+def parse_extrinsic_to_matrix(pose_list, quat_mode='wxyz'):
+    if len(pose_list) == 7:
+        return get_transformation_matrix(pose_list, quat_mode)
+    elif len(pose_list) == 16:
+        return np.array(pose_list, dtype=np.float32).reshape(4, 4)
+    else:
+        raise ValueError(f"Unsupported extrinsic format with length {len(pose_list)}")
+
+
 def find_closest_timestamp(sorted_timestamps, target_ts):
     pos = bisect.bisect_left(sorted_timestamps, target_ts)
     candidates = []
@@ -191,7 +200,9 @@ def merge_pointclouds_to_vehicle(sensor_root_dir, extrinsics_json_path, output_d
                 continue
 
             # 变换点云到车体坐标系
-            T = get_transformation_matrix(extrinsics_dict[extrinsics_key], quat_mode=quat_mode)
+            # T = get_transformation_matrix(extrinsics_dict[extrinsics_key], quat_mode=quat_mode)
+            T = parse_extrinsic_to_matrix(extrinsics_dict[extrinsics_key], quat_mode=quat_mode)
+            
             points_xyz = points[:, :3]
             points_intensity = points[:, 3:4] if points.shape[1] > 3 else np.zeros((points.shape[0],1), dtype=np.float32)
             points_hom = np.hstack((points_xyz, np.ones((points.shape[0], 1))))
@@ -208,7 +219,8 @@ def merge_pointclouds_to_vehicle(sensor_root_dir, extrinsics_json_path, output_d
 
 if __name__ == "__main__":
     sensor_root_dir = "data/202505201008_record"
-    extrinsics_json_path = "data/002_params/params/extrinsics.json"
+    # extrinsics_json_path = "data/002_params/params/extrinsics.json"
+    extrinsics_json_path = "data/002_params/vehicle_base_cpp/merged/extrinsics_raw.json"
     # sensor_root_dir = "data/out_chenxu"
     # extrinsics_json_path = "data/out_chenxu/extrinsic.json"
     output_dir = sensor_root_dir + "_merged"

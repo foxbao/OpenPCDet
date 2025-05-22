@@ -1,60 +1,82 @@
 import os
-import yaml
 import json
 import numpy as np
-from transforms3d.quaternions import quat2mat, mat2quat
+from scipy.spatial.transform import Rotation as R
 
-def load_transform_matrix(yaml_path):
-    """从 YAML 文件中加载变换并转为 4x4 齐次矩阵"""
-    with open(yaml_path, 'r') as f:
-        data = yaml.safe_load(f)
-    trans = data['transform']['translation']
-    rot = data['transform']['rotation']
-    t = np.array([trans['x'], trans['y'], trans['z']])
-    q = np.array([rot['w'], rot['x'], rot['y'], rot['z']])  # 注意：wxyz 顺序
-    R = quat2mat(q)  # 3x3 旋转矩阵
-
-    T = np.eye(4)
-    T[:3, :3] = R
-    T[:3, 3] = t
-    return T
-
-def transform_to_list(T):
-    """从 4x4 齐次矩阵提取 translation 和四元数"""
-    t = T[:3, 3]
-    R = T[:3, :3]
-    q = mat2quat(R)  # 返回 [w, x, y, z]
-    return [*t, *q]
-
-def main():
-    # 路径设置
-    base_dir = "./data/params"
-    imu_yaml = os.path.join(base_dir, "imu_vehicle_extrinsics.yaml")
-
-    lidar_yaml_files = {
-        "helios_front_left": "helios_front_left_extrinsics.yaml",
-        "helios_rear_right": "helios_rear_right_extrinsics.yaml",
-        "bp_front_left": "bp_front_left_extrinsics.yaml",
-        "bp_rear_right": "bp_rear_right_extrinsics.yaml",
-    }
-
-    # imu -> vehicle（从 YAML 文件读出来的是 imu -> vehicle）
-    T_vehicle_imu = load_transform_matrix(imu_yaml)
+def load_extrinsics(input_dir, quat_mode='xyzw'):
+    assert quat_mode in ['xyzw', 'wxyz'], "quat_mode 必须为 'xyzw' 或 'wxyz'"
 
     extrinsics = {}
 
-    for name, lidar_file in lidar_yaml_files.items():
-        lidar_path = os.path.join(base_dir, lidar_file)
-        T_lidar_imu = load_transform_matrix(lidar_path)  # 从 imu 到 lidar，实际上是 T_lidar_imu
-        T_imu_lidar = np.linalg.inv(T_lidar_imu)         # 我们需要 imu <- lidar
-        T_vehicle_lidar = T_vehicle_imu @ T_imu_lidar    # vehicle <- imu <- lidar
-        extrinsics[f"Tx_baselink_lidar_{name}"] = transform_to_list(T_vehicle_lidar)
+    for filename in os.listdir(input_dir):
+        if filename.endswith('.json'):
+            filepath = os.path.join(input_dir, filename)
+            with open(filepath, 'r') as f:
+                data = json.load(f)
 
-    output_path = os.path.join(base_dir, "extrinsics.json")
-    with open(output_path, "w") as f:
+            transform_flat = data['Tranform']
+            matrix = np.array(transform_flat).reshape(4, 4)
+
+            # 提取平移向量
+            translation = matrix[:3, 3].tolist()
+
+            # 提取旋转矩阵并转为四元数
+            quat_xyzw = R.from_matrix(matrix[:3, :3]).as_quat()  # [x, y, z, w]
+
+            if quat_mode == 'wxyz':
+                quat = [quat_xyzw[3]] + quat_xyzw[:3].tolist()  # [w, x, y, z]
+            else:
+                quat = quat_xyzw.tolist()  # [x, y, z, w]
+
+            # 拼接 [tx, ty, tz, ..., ...]
+            transform_vec = translation + quat
+
+            # 构造键名
+            sensor_name = filename.replace('.json', '')
+            key = f"Tx_baselink_{sensor_name}"
+
+            extrinsics[key] = transform_vec
+
+    return extrinsics
+
+def load_extrinsics_raw(input_dir):
+    """直接加载原始的 4x4 变换矩阵，合并为一个字典"""
+    extrinsics_raw = {}
+
+    for filename in os.listdir(input_dir):
+        if filename.endswith('.json'):
+            filepath = os.path.join(input_dir, filename)
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+
+            transform_flat = data['Tranform']
+            sensor_name = filename.replace('.json', '')
+            key = f"Tx_baselink_{sensor_name}"
+
+            extrinsics_raw[key] = transform_flat
+
+    return extrinsics_raw
+
+def main():
+    input_dir = 'data/002_params/vehicle_base_cpp'
+    output_dir = 'data/002_params/vehicle_base_cpp/merged'
+    output_json_path = os.path.join(output_dir, 'extrinsics.json')
+    output_raw_json_path = os.path.join(output_dir, 'extrinsics_raw.json')
+
+    # ✅ 确保输出文件夹存在
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 四元数版本
+    extrinsics = load_extrinsics(input_dir, quat_mode='wxyz')
+    with open(output_json_path, 'w') as f:
         json.dump(extrinsics, f, indent=4)
+    print(f"✅ 成功生成 {output_json_path}（带四元数）")
 
-    print(f"✅ extrinsics.json 已生成于 {output_path}")
+    # 原始矩阵版本
+    extrinsics_raw = load_extrinsics_raw(input_dir)
+    with open(output_raw_json_path, 'w') as f:
+        json.dump(extrinsics_raw, f, indent=4)
+    print(f"✅ 成功生成 {output_raw_json_path}（原始矩阵）")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
