@@ -286,7 +286,8 @@ class KLDataset(DatasetTemplate):
             # 工程车辆
             'Crane': 'Crane',                    # 起重机
             'Forklift': 'Forklift',                 # 普通叉车
-            'ConstructionVehicle': 'ConstructionVehicle'       # 工程车
+            'ConstructionVehicle': 'ConstructionVehicle',       # 工程车
+            'WheelCrane':'WheelCrane'
         }
 
         if kwargs['eval_metric'] == 'kitti':
