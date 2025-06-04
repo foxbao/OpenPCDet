@@ -21,6 +21,7 @@ class_names = {
     12: "Forklift",
     13: "Lorry",
     14: "ConstructionVehicle",
+    15: "WheelCrane"
 }
 
 def create_3d_bbox(bbox_3d, color=(1, 0, 0)):
