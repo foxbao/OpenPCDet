@@ -14,10 +14,12 @@ CLASS_NAMES:
     "Forklift",
     "Lorry",
     "ConstructionVehicle",
+    "WheelCrane",
   ]
 
 DATA_CONFIG:
   _BASE_CONFIG_: cfgs/dataset_configs/kl_dataset.yaml
+  # _BASE_CONFIG_: cfgs/dataset_configs/lightwheel_dataset.yaml
   POINT_CLOUD_RANGE: [-69.12, -39.68, -3, 69.12, 39.68, 1]
   DATA_PROCESSOR:
     - NAME: mask_points_and_boxes_outside_range
@@ -55,6 +57,7 @@ DATA_CONFIG:
                 "Forklift:5",
                 "Lorry:5",
                 "ConstructionVehicle:5",
+                "WheelCrane:5",
               ],
             filter_by_difficulty: [-1],
           }
@@ -75,6 +78,7 @@ DATA_CONFIG:
             "Forklift:15",
             "Lorry:15",
             "ConstructionVehicle:15",
+            "WheelCrane:15",
           ]
         NUM_POINT_FEATURES: 4
         DATABASE_WITH_FAKELIDAR: False
@@ -262,6 +266,16 @@ MODEL:
           "matched_threshold": 0.5,
           "unmatched_threshold": 0.35,
         },
+        {
+          "class_name": "WheelCrane",
+          "anchor_sizes": [[6.93, 2.51, 2.84]],
+          "anchor_rotations": [0, 1.57],
+          "anchor_bottom_heights": [-1.6],
+          "align_center": False,
+          "feature_map_stride": 2,
+          "matched_threshold": 0.5,
+          "unmatched_threshold": 0.35,
+        },
       ]
 
     TARGET_ASSIGNER_CONFIG:
@@ -301,6 +315,7 @@ MODEL:
         "Forklift:0.3",
         "Lorry:0.5",
         "ConstructionVehicle:0.5",
+        "WheelCrane:0.5",
       ]
     EVAL_METRIC: kitti
 
@@ -313,7 +328,7 @@ MODEL:
 
 OPTIMIZATION:
   BATCH_SIZE_PER_GPU: 4
-  NUM_EPOCHS: 200
+  NUM_EPOCHS: 100
 
   OPTIMIZER: adam_onecycle
   LR: 0.003

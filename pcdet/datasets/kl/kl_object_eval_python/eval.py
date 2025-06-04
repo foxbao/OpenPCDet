@@ -82,7 +82,8 @@ def get_thresholds(scores: np.ndarray, num_gt, num_sample_pts=41):
 #     return num_valid_gt, ignored_gt, ignored_dt, dc_bboxes
 
 def clean_data(gt_anno, dt_anno, current_class, difficulty):
-    CLASS_NAMES = ['car', 'pedestrian', 'truck','IGV-Full','IGV-Empty','cone','othervehicle','trailer-empty','trailer-full','lorry','containerforklift','Crane','Forklift','ConstructionVehicle']
+    # CLASS_NAMES = ['car', 'pedestrian', 'truck','IGV-Full','IGV-Empty','cone','othervehicle','trailer-empty','trailer-full','lorry','containerforklift','Crane','Forklift','ConstructionVehicle']
+    CLASS_NAMES = ['Pedestrian', 'Car', 'IGV-Full','Truck','Trailer-Empty','Trailer-Full','IGV-Empty','Crane','OtherVehicle','Cone','ContainerForklift','Forklift','Lorry','ConstructionVehicle','WheelCrane']
     MIN_HEIGHT = [40, 25, 25]
     MAX_OCCLUSION = [0, 1, 2]
     MAX_TRUNCATION = [0.15, 0.3, 0.5]

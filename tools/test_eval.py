@@ -44,7 +44,8 @@ def evaluation(det_annos,gt_annos,map_name_to_kitti):
         # 工程车辆
         'Crane': 'Crane',                    # 起重机
         'Forklift': 'Forklift',                 # 普通叉车
-        'ConstructionVehicle': 'ConstructionVehicle'       # 工程车
+        'ConstructionVehicle': 'ConstructionVehicle',       # 工程车
+        'WheelCrane': 'WheelCrane'       # luntaidiao
     }
 
     ap_result_str, ap_dict=kitti_eval(eval_det_annos,eval_gt_annos,map_name_to_kitti)
@@ -58,7 +59,7 @@ if __name__ == '__main__':
         eval_gt_annos = pickle.load(f)
     class_names=['Pedestrian','Car', 'IGV-Full', 'Truck', 'Trailer-Empty',
               'Trailer-Full', 'IGV-Empty','Crane','OtherVehicle', 'Cone',
-                    'ContainerForklift', 'Forklift', 'Lorry', 'ConstructionVehicle']
+                    'ContainerForklift', 'Forklift', 'Lorry', 'ConstructionVehicle','WheelCrane']
     ap_result_str, ap_dict=evaluation(eval_det_annos,eval_gt_annos,class_names)
     print(ap_result_str)
     # logger.info(result_str)

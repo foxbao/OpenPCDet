@@ -13,7 +13,7 @@ def precompute_timestamps(pointcloud_files):
     :param pointcloud_files: 点云文件列表（Path 对象）
     :return: 时间戳列表（整数列表）
     """
-    return [int(f.stem) for f in pointcloud_files]
+    return [float(f.stem) for f in pointcloud_files]
 
 
 
@@ -26,11 +26,11 @@ def find_nearest_data(timestamp, data_files, data_timestamps=None):
     :param data_timestamps: 预计算的时间戳列表（可选）
     :return: 最近的传感器文件路径（字符串）
     """
-    timestamp = int(timestamp)  # 确保时间戳是整数
+    timestamp = float(timestamp)  # 确保时间戳是整数
 
     # 如果没有预计算时间戳，则实时计算
     if data_timestamps is None:
-        data_timestamps = [int(f.stem) for f in data_files]
+        data_timestamps = [float(f.stem) for f in data_files]
 
     # 使用 NumPy 计算最小差值
     diffs = np.abs(np.array(data_timestamps) - timestamp)
@@ -47,11 +47,11 @@ def find_nearest_pointcloud_bisect(timestamp, pointcloud_files, pointcloud_times
     :param pointcloud_timestamps: 预计算的时间戳列表（可选）
     :return: 最近的点云文件路径（字符串）
     """
-    timestamp = int(timestamp)  # 确保时间戳是整数
+    timestamp = float(timestamp)  # 确保时间戳是整数
 
     # 如果没有预计算时间戳，则实时计算
     if pointcloud_timestamps is None:
-        pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
+        pointcloud_timestamps = [float(f.stem) for f in pointcloud_files]
 
     # 使用二分查找找到最近的索引
     pos = bisect_left(pointcloud_timestamps, timestamp)
@@ -69,12 +69,12 @@ def find_nearest_pointcloud_bisect(timestamp, pointcloud_files, pointcloud_times
 
 
 def match_sensor_data(timestamp:str,sensor_files,sensor_timestamps):
-    timestamp = int(timestamp)
+    timestamp = float(timestamp)
     return find_nearest_data(timestamp, sensor_files, sensor_timestamps)
 
 def match_multi_sensor_data(timestamp:str, multi_sensor_files:dict,multi_sensor_timestamps)->dict:
     data_dict = {}
-    timestamp = int(timestamp)  # 确保时间戳是整数
+    timestamp = float(timestamp)  # 确保时间戳是整数
 
     for sensor_name in multi_sensor_files:
         sensor_files=multi_sensor_files[sensor_name]

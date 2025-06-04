@@ -18,6 +18,7 @@ from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
 
 
+
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')

@@ -16,22 +16,93 @@ from .kl import KL
 from pcdet.utils import common_utils
 import random
 
-def read_bin(bin_file):
-    dtype = np.dtype([
-        ('x', np.float32),  # 4 bytes
-        ('y', np.float32),  # 4 bytes
-        ('z', np.float32),  # 4 bytes
-        ('intensity',np.float32),
-        ('ring',np.float32),
-        ('timestamp_2us',np.float32),
-    ])
+def check_nan_inf(arr):
+    """
+    检查数组中是否有 NaN 或 Inf，并打印其位置。
     
-    # 读取 .bin 文件
-    data = np.fromfile(bin_file, dtype=dtype)
-    # points = data.reshape(-1, 6)
-    # 提取 x, y, z 坐标和intensity，符合kitti数据格式
-    points = np.vstack((data['x'], data['y'], data['z'],data['intensity'])).transpose()
+    :param arr: numpy 数组
+    :return: True（如果有 NaN 或 Inf），否则 False
+    """
+    
+    if arr.dtype.kind in {'U', 'S', 'O'}:
+        # 判断是否是字符串类型
+        if np.issubdtype(arr.dtype, np.str_) or np.issubdtype(arr.dtype, np.object_):
+            # print("Array contains string data, skipping NaN/Inf check.")
+            return False
+        
+    has_nan = np.isnan(arr)
+    has_inf = np.isinf(arr)
+
+    if np.any(has_nan):
+        print("Found NaN at indices:", np.argwhere(has_nan))
+        aaaaa=1
+
+    if np.any(has_inf):
+        print("Found Inf at indices:", np.argwhere(has_inf))
+        aaaaa=1
+
+    return np.any(has_nan) or np.any(has_inf)
+
+
+def read_pcd_with_intensity(pcd_path):
+    # 读取文件头
+    with open(pcd_path, 'rb') as f:
+        header = []
+        while True:
+            line = f.readline().decode('utf-8').strip()
+            header.append(line)
+            if line.startswith('DATA'):
+                break
+
+    # 解析字段信息
+    fields = None
+    size = None
+    type_map = {'F': np.float32, 'U': np.uint8}
+    for line in header:
+        if line.startswith('FIELDS'):
+            fields = line.split()[1:]
+        elif line.startswith('SIZE'):
+            size = list(map(int, line.split()[1:]))
+        elif line.startswith('TYPE'):
+            type_ = line.split()[1:]
+
+    # 计算数据偏移量（跳过头部字节）
+    data_offset = len('\n'.join(header)) + 1
+
+    # 定义结构化 dtype
+    dtype = np.dtype([(f, type_map[t]) for f, t in zip(fields, type_)])
+    data = np.fromfile(pcd_path, dtype=dtype, offset=data_offset)
+
+    # 将 x, y, z, intensity 取出
+    xyz = np.vstack([data['x'], data['y'], data['z']]).T
+    intensity = data['intensity'].reshape(-1, 1)
+
+    # 拼接为 (N, 4)
+    points = np.hstack((xyz, intensity))
+
+    # 过滤掉包含 NaN 或 Inf 的点
+    is_finite = np.all(np.isfinite(points), axis=1)
+    points = points[is_finite]
+
     return points
+
+
+def read_bin(bin_file):
+    if bin_file.suffix == '.bin':
+        dtype = np.dtype([
+            ('x', np.float32),
+            ('y', np.float32),
+            ('z', np.float32),
+            ('intensity', np.float32),
+            ('ring', np.float32),
+            ('timestamp_2us', np.float32),
+        ])
+        data = np.fromfile(bin_file, dtype=dtype)
+        points = np.vstack((data['x'], data['y'], data['z'], data['intensity'])).T
+        return points
+
+    elif bin_file.suffix == '.pcd':
+        return read_pcd_with_intensity(bin_file)
 
 def kl_eval(eval_det_annos, eval_gt_annos):
     pass
@@ -387,16 +458,21 @@ if __name__ == '__main__':
         dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         dataset_cfg.VERSION = args.version
+        data_path = Path(dataset_cfg.DATA_PATH)  # 转换为 Path
+        
+        last_two_parts = data_path.parts[-2:]   # 取最后两部分，如 ('data', 'kl')
+        folder=last_two_parts[0]
+        name=last_two_parts[1]
         create_kl_infos(
             version=dataset_cfg.VERSION,
-            data_path=ROOT_DIR / 'data' / 'kl',
-            save_path=ROOT_DIR / 'data' / 'kl',
+            data_path=ROOT_DIR / folder / name,
+            save_path=ROOT_DIR /folder / name,
             with_cam=args.with_cam
         )
 
     kl_dataset = KLDataset(
         dataset_cfg=dataset_cfg, class_names=None,
-        root_path=ROOT_DIR / 'data' / 'kl',
+        root_path=ROOT_DIR / folder / name,
         logger=common_utils.create_logger(), training=True
     )
 

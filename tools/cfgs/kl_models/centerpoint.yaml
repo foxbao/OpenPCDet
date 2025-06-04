@@ -126,34 +126,6 @@ MODEL:
         [Pedestrian,"Cone"],                     # head 6: 其他杂项类
       ]
 
-        # CLASS_NAMES_EACH_HEAD: [
-        #     ['car'], 
-        #     ['truck', 'construction_vehicle'],
-        #     ['bus', 'trailer'],
-        #     ['barrier'],
-        #     ['motorcycle', 'bicycle'],
-        #     ['pedestrian', 'traffic_cone'],
-        # ]
-    # CLASS_NAMES_EACH_HEAD:
-    #   [
-    #     [
-    #       "Pedestrian",
-    #       "Car",
-    #       "IGV-Full",
-    #       "Truck",
-    #       "Trailer-Empty",
-    #       "Trailer-Full",
-    #       "IGV-Empty",
-    #       "Crane",
-    #       "OtherVehicle",
-    #       "Cone",
-    #       "ContainerForklift",
-    #       "Forklift",
-    #       "Lorry",
-    #       "ConstructionVehicle",
-    #     ],
-    #   ]
-
     SHARED_CONV_CHANNEL: 64
     USE_BIAS_BEFORE_NORM: True
     NUM_HM_CONV: 2 #  heatmap

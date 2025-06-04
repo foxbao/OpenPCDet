@@ -208,19 +208,41 @@ def quaternion_to_yaw(rotation)->float:
     yaw = np.arctan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy**2 + qz**2))
     return yaw
 
+
+
 def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
-    # 确保输入是 numpy 数组
+    """
+    将 xyz, lwh 和 rotation 转换为 [x, y, z, l, w, h, yaw]
+    支持 rotation 为四元数 [w, x, y, z] 或字典 {'x':..., 'y':..., 'z':...}
+    """
     xyz = np.asarray(xyz)
     lwh = np.asarray(lwh)
-    rotation = np.asarray(rotation)
-    
-    # 将四元数转换为偏航角
-    yaw = quaternion_to_yaw(rotation)
-    
-    # 将 xyz, lwh, yaw 拼接成 gt_boxes
+
+    if isinstance(rotation, dict):
+        # 如果是 dict，直接取 z 作为 yaw
+        yaw = rotation.get('z', 0.0)
+    else:
+        # 如果是四元数，计算 yaw
+        rotation = np.asarray(rotation)
+        yaw = quaternion_to_yaw(rotation)
+
     gt_boxes = np.concatenate([xyz, lwh, [yaw]])
-    
     return gt_boxes
+
+
+# def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
+#     # 确保输入是 numpy 数组
+#     xyz = np.asarray(xyz)
+#     lwh = np.asarray(lwh)
+#     rotation = np.asarray(rotation)
+    
+#     # 将四元数转换为偏航角
+#     yaw = quaternion_to_yaw(rotation)
+    
+#     # 将 xyz, lwh, yaw 拼接成 gt_boxes
+#     gt_boxes = np.concatenate([xyz, lwh, [yaw]])
+    
+#     return gt_boxes
 
 
 def convert_json_to_annotations(json_data:List[dict]):
@@ -301,10 +323,27 @@ def fill_trainval_infos(kl:KL,train_samples,val_samples,test_samples):
         annotations=convert_json_to_annotations(data)
         with open(sample['extrinsics_path'], 'r', encoding='utf-8') as f:
             extrinsice_data = json.load(f)
-        with open(sample['intrinsics_path'], 'r', encoding='utf-8') as f:
-            intrinsice_data = json.load(f)
-        with open(sample['localization'], 'r', encoding='utf-8') as f:
-            state=json.load(f)
+
+        # ---------- 读取 intrinsics（若存在） ----------
+        intr_path = sample.get('intrinsics_path')
+        if intr_path is not None and Path(intr_path).exists():
+            with open(intr_path, 'r', encoding='utf-8') as f:
+                intrinsice_data = json.load(f)
+        else:
+            intrinsice_data = {}
+
+        # ---------- 读取 localization（若有） ----------
+        loc_path = sample.get('localization')
+        if loc_path:                       # 既防 None，也防空字符串/Path
+            with open(loc_path, 'r', encoding='utf-8') as f:
+                state = json.load(f)
+        else:
+            state = None            
+
+        # with open(sample['intrinsics_path'], 'r', encoding='utf-8') as f:
+        #     intrinsice_data = json.load(f)
+        # with open(sample['localization'], 'r', encoding='utf-8') as f:
+        #     state=json.load(f)
         # 为每个样本添加 timestamp、token 和 pointcloud_path
         info = {
             'token': sample['token'],
