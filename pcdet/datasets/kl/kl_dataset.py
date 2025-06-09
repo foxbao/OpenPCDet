@@ -35,11 +35,9 @@ def check_nan_inf(arr):
 
     if np.any(has_nan):
         print("Found NaN at indices:", np.argwhere(has_nan))
-        aaaaa=1
 
     if np.any(has_inf):
         print("Found Inf at indices:", np.argwhere(has_inf))
-        aaaaa=1
 
     return np.any(has_nan) or np.any(has_inf)
 
@@ -364,8 +362,8 @@ class KLDataset(DatasetTemplate):
 
 def split_samples(samples):
     total_files = len(samples)
-    train_size = int(total_files * 0.8)
-    val_size = int(total_files * 0.18)
+    train_size = int(total_files * 0.9)
+    val_size = int(total_files * 0.09)
     split_samples = {
         'train': samples[:train_size],
         'val': samples[train_size:train_size + val_size],

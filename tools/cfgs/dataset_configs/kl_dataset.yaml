@@ -1,7 +1,8 @@
 DATASET: 'KLDataset'
 DATA_PATH: '../data/kl'
 
-POINT_CLOUD_RANGE: [-70.4, -40, -3, 70.4, 40, 1]
+# POINT_CLOUD_RANGE: [-70.4, -40, -3, 70.4, 40, 1]
+POINT_CLOUD_RANGE: [-69.12, -39.68, -3, 69.12, 39.68, 5]
 VERSION: 'v1.0-trainval'
 
 DATA_SPLIT: {

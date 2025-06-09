@@ -15,6 +15,23 @@ from visual_utils.visualize_tools import offscreen_visualization_array,visualiza
 from visual_utils.open3d_vis_utils import box_colormap
 
 
+from collections import defaultdict
+
+def update_class_stats(stats_dict, boxes):
+    for box in boxes:
+        l, w, h = box[3:6]
+        z = box[2]
+        bottom = z - h / 2
+        label = int(box[-1])
+        
+        stats_dict[label]['l_sum'] += l
+        stats_dict[label]['w_sum'] += w
+        stats_dict[label]['h_sum'] += h
+        stats_dict[label]['bottom_sum'] += bottom
+        stats_dict[label]['count'] += 1
+        
+
+
 def parse_config():
 
     parser = argparse.ArgumentParser(description='arg parser')
@@ -51,6 +68,28 @@ def parse_config():
         cfg_from_list(args.set_cfgs, cfg)
 
     return args, cfg
+
+def analyze_gt(train_loader):
+    # 初始化一个 defaultdict 保存每类的统计信息
+    class_stats = defaultdict(lambda: {'l_sum': 0, 'w_sum': 0, 'h_sum': 0, 'bottom_sum': 0, 'count': 0})
+    print("\nAverage LWH and anchor bottom height per class:")
+    for idx, batch_dict in enumerate(tqdm(train_loader)):
+        gt_boxes = batch_dict['gt_boxes'][0]
+        update_class_stats(class_stats, gt_boxes)
+        
+    print("\nAverage LWH and anchor bottom height per class:")
+    for cls_id in sorted(class_stats.keys()):
+        stats = class_stats[cls_id]
+        if stats['count'] == 0:
+            continue
+        avg_l = stats['l_sum'] / stats['count']
+        avg_w = stats['w_sum'] / stats['count']
+        avg_h = stats['h_sum'] / stats['count']
+        avg_bottom = stats['bottom_sum'] / stats['count']
+        class_name = cfg.CLASS_NAMES[cls_id-1] if cls_id < len(cfg.CLASS_NAMES) else str(cls_id)
+        print(f"Class {class_name} (ID: {cls_id-1}):")
+        print(f"  Avg Length: {avg_l:.2f}, Width: {avg_w:.2f}, Height: {avg_h:.2f}")
+        print(f"  Avg Anchor Bottom Height: {avg_bottom:.2f}")
 
 def main():
     # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
@@ -113,8 +152,12 @@ def main():
         batch_size=1,
         dist=dist_test, workers=args.workers, logger=logger, training=True
     )
-
+    
+    analyze_gt(train_loader=train_loader)
+    
     print("saving to ","../result/groundtruth_train")
+    
+    
     for idx, batch_dict in enumerate(tqdm(train_loader)):
         points = batch_dict['points']
         points = points[:, 1:]
@@ -122,12 +165,21 @@ def main():
         folder="../result/groundtruth_train/"+batch_dict['folder'][0]
         timestamp=batch_dict['timestamp'][0]
         output_image=folder+"/"+timestamp+".png"
-        offscreen_visualization_array(
-            points,
-            gt_boxes=gt_boxes,
-            output_image=output_image,
-            box_colormap=box_colormap
-        )
+        
+        if args.save_to_file:
+            offscreen_visualization_array(
+                points,
+                gt_boxes=gt_boxes,
+                output_image=output_image,
+                box_colormap=box_colormap
+            )
+        else:
+            visualization_array_pyvista(
+                points,
+                gt_boxes=gt_boxes,
+                output_image=output_image,
+                box_colormap=box_colormap
+            )
 
     val_set, val_loader, sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,
@@ -145,13 +197,20 @@ def main():
         folder="../result/groundtruth_val/"+batch_dict['folder'][0]
         timestamp=batch_dict['timestamp'][0]
         output_image=folder+"/"+timestamp+".png"
-        offscreen_visualization_array(
-            points,
-            gt_boxes=gt_boxes,
-            output_image=output_image,
-            box_colormap=box_colormap
-            
-        )
+        if args.save_to_file:            
+            offscreen_visualization_array(
+                points,
+                gt_boxes=gt_boxes,
+                output_image=output_image,
+                box_colormap=box_colormap
+            )
+        else:
+            visualization_array_pyvista(
+                points,
+                gt_boxes=gt_boxes,
+                output_image=output_image,
+                box_colormap=box_colormap
+            )
 
 
 
