@@ -218,9 +218,10 @@ def merge_pointclouds_to_vehicle(sensor_root_dir, extrinsics_json_path, output_d
             save_pcd_with_intensity(merged_all, output_root / pcd_filename)
 
 if __name__ == "__main__":
-    sensor_root_dir = "data/202505201008_record"
+    # sensor_root_dir = "data/202505201008_record"
+    sensor_root_dir = "data/20250507/20250507_duichang_3/lidar"
     # extrinsics_json_path = "data/002_params/params/extrinsics.json"
-    extrinsics_json_path = "data/002_params/vehicle_base_cpp/merged/extrinsics_raw.json"
+    extrinsics_json_path = "data/20250507/20250507_duichang_3//extrinsics.json"
     # sensor_root_dir = "data/out_chenxu"
     # extrinsics_json_path = "data/out_chenxu/extrinsic.json"
     output_dir = sensor_root_dir + "_merged"

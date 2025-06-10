@@ -261,6 +261,9 @@ def main():
     model = build_network(
         model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_dataset
     )
+    
+    num_class=len(cfg.CLASS_NAMES)
+
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
 
     model.cuda()
@@ -270,7 +273,7 @@ def main():
 
     with torch.no_grad():
         # MAX_VOXELS = 12537
-        MAX_VOXELS = 40000
+        MAX_VOXELS = 80000
         dummy_voxels = torch.zeros(
             (MAX_VOXELS, 32, 4), dtype=torch.float32, device="cuda:0"
         )
@@ -350,7 +353,7 @@ def main():
 
     import onnx_graphsurgeon as gs
 
-    onnx_trim_post = simplify_postprocess(onnx_raw)
+    onnx_trim_post = simplify_postprocess(onnx_raw,num_class)
     onnx.save(onnx_trim_post, os.path.join(args.out_dir, "onnx_trim_post.onnx"))
     onnx_simp, check = simplify(onnx_trim_post)
     assert check, "Simplified ONNX model could not be validated"
@@ -432,19 +435,19 @@ def main():
     pred_dicts_onnx, recall_dict_torch = model.post_processing(onnx_output_batch)
     torch.save(pred_dicts_onnx, "pt/pred_dicts_onnx.pt")
 
-    torch_batch_out = model(real_input)
-    pred_dicts_torch = torch_batch_out[0]
-    forward_ret_dict = torch_batch_out[2]
+    # torch_batch_out = model(real_input)
+    # pred_dicts_torch = torch_batch_out[0]
+    # forward_ret_dict = torch_batch_out[1]
 
-    batch_cls_preds, batch_box_preds = model.module_list[-1].generate_predicted_boxes(
-        batch_size=data_dict["batch_size"],
-        cls_preds=forward_ret_dict["cls_preds"],
-        box_preds=forward_ret_dict["box_preds"],
-        dir_cls_preds=forward_ret_dict["dir_cls_preds"],
-    )
+    # batch_cls_preds, batch_box_preds = model.module_list[-1].generate_predicted_boxes(
+    #     batch_size=data_dict["batch_size"],
+    #     cls_preds=forward_ret_dict["cls_preds"],
+    #     box_preds=forward_ret_dict["box_preds"],
+    #     dir_cls_preds=forward_ret_dict["dir_cls_preds"],
+    # )
 
-    torch.save(forward_ret_dict, "pt/forward_ret_dict_torch.pt")
-    torch.save(pred_dicts_torch, "pt/pred_dicts_torch.pt")
+    # torch.save(forward_ret_dict, "pt/forward_ret_dict_torch.pt")
+    # torch.save(pred_dicts_torch, "pt/pred_dicts_torch.pt")
 
     # torch_batch_out=model(real_input)
     # torch_batch_out['cls_preds_normalized']=False

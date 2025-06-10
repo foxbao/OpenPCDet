@@ -38,16 +38,38 @@ def loop_node(graph, current_node, loop_time=0):
     current_node = next_node
   return next_node
 
-def simplify_postprocess(onnx_model):
+def simplify_postprocess(onnx_model,num_class=0):
   print("Use onnx_graphsurgeon to adjust postprocessing part in the onnx...")
   graph = gs.import_onnx(onnx_model)
 
+  # kitti 3类
   # cls_preds = gs.Variable(name="cls_preds", dtype=np.float32, shape=(1, 248, 216, 18))
   # box_preds = gs.Variable(name="box_preds", dtype=np.float32, shape=(1, 248, 216, 42))
   # dir_cls_preds = gs.Variable(name="dir_cls_preds", dtype=np.float32, shape=(1, 248, 216, 12))
-  cls_preds = gs.Variable(name="cls_preds", dtype=np.float32, shape=(1, 248, 432, 392))
-  box_preds = gs.Variable(name="box_preds", dtype=np.float32, shape=(1, 248, 432, 196))
-  dir_cls_preds = gs.Variable(name="dir_cls_preds", dtype=np.float32, shape=(1, 248, 432, 56))
+  
+  # kl 14类
+  # cls_preds = gs.Variable(name="cls_preds", dtype=np.float32, shape=(1, 248, 432, 392))
+  # box_preds = gs.Variable(name="box_preds", dtype=np.float32, shape=(1, 248, 432, 196))
+  # dir_cls_preds = gs.Variable(name="dir_cls_preds", dtype=np.float32, shape=(1, 248, 432, 56))
+
+  # kl 15类
+  # cls_preds = gs.Variable(name="cls_preds", dtype=np.float32, shape=(1, 248, 432, 450))
+  # box_preds = gs.Variable(name="box_preds", dtype=np.float32, shape=(1, 248, 432, 210))
+  # dir_cls_preds = gs.Variable(name="dir_cls_preds", dtype=np.float32, shape=(1, 248, 432, 60))
+  
+  if num_class==0:
+    num_class=15
+  else:
+    num_anchors_per_location=num_class*2
+    code_size=7
+    NUM_DIR_BINS=2
+  C_cls=num_anchors_per_location*num_class
+  C_box=num_anchors_per_location*code_size
+  C_dir_cls=num_anchors_per_location*NUM_DIR_BINS
+  
+  cls_preds = gs.Variable(name="cls_preds", dtype=np.float32, shape=(1, 248, 432, C_cls))
+  box_preds = gs.Variable(name="box_preds", dtype=np.float32, shape=(1, 248, 432, C_box))
+  dir_cls_preds = gs.Variable(name="dir_cls_preds", dtype=np.float32, shape=(1, 248, 432, C_dir_cls))
 
   tmap = graph.tensors()
   new_inputs = [tmap["voxels"], tmap["voxel_idxs"], tmap["voxel_num"]]

@@ -82,6 +82,7 @@ def read_pcd_with_intensity(pcd_path):
     is_finite = np.all(np.isfinite(points), axis=1)
     points = points[is_finite]
 
+
     return points
 
 
