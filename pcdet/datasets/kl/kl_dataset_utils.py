@@ -252,6 +252,7 @@ def convert_json_to_annotations(json_data:List[dict]):
     gt_subtype=[]
     gt_boxes_token=[]
     gt_track_ids=[]
+    gt_num_lidar_pts=[]
     for data in json_data:
         if data['label']=='Container':
             continue
@@ -264,6 +265,7 @@ def convert_json_to_annotations(json_data:List[dict]):
         gt_subtype.append(data['subtype'])
         gt_boxes_token.append(data['track_id'])
         gt_track_ids.append(data['track_id'])
+        gt_num_lidar_pts.append(data['num_lidar_pts'])
     gt_boxes = np.vstack(gt_boxes)
     gt_names = np.array(gt_names)
     gt_subtype= np.array(gt_subtype)
@@ -271,6 +273,7 @@ def convert_json_to_annotations(json_data:List[dict]):
     gt_track_ids = np.array(gt_track_ids)
     gt_boxes_lidar=gt_boxes
     annotations['name'] = np.array(gt_names)
+    annotations['num_lidar_pts']= np.array(gt_num_lidar_pts)
     
     num_gt = len(annotations['name'])
     # 获取标签截断程度

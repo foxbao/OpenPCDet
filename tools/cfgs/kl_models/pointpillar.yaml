@@ -33,6 +33,26 @@ DATA_CONFIG:
       VOXEL_SIZE: [0.16, 0.16, 8]
       MAX_POINTS_PER_VOXEL: 32
       MAX_NUMBER_OF_VOXELS: { "train": 80000, "test": 40000 }
+
+  POINT_FILTER:
+    ENABLED: True
+    FILTER_MIN_POINTS_BY_CLASS:
+      Pedestrian: 5
+      Car: 10
+      IGV-Full: 5
+      Truck: 5
+      Trailer-Empty: 10
+      Trailer-Full: 10
+      IGV-Empty: 10
+      Crane: 20
+      OtherVehicle: 5
+      Cone: 5
+      ContainerForklift: 5
+      Forklift: 5
+      Lorry: 5
+      ConstructionVehicle: 5
+      WheelCrane: 10
+
   DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ["placeholder"]
     AUG_CONFIG_LIST:
@@ -51,7 +71,7 @@ DATA_CONFIG:
                 "Trailer-Empty:5",
                 "Trailer-Full:5",
                 "IGV-Empty:5",
-                "Crane:5",
+                "Crane:20",
                 "OtherVehicle:5",
                 "Cone:5",
                 "ContainerForklift:5",
@@ -298,14 +318,14 @@ MODEL:
 
   POST_PROCESSING:
     RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-    SCORE_THRESH: 0.2
+    SCORE_THRESH: 0.4
     OUTPUT_RAW_SCORE: False
     MULTI_CLASSES_SCORE_THRESH_BAO:
       [
         "Pedestrian:0.4",
         "Car:0.5",
         "IGV-Full:0.5",
-        "Truck:0.40",
+        "Truck:0.5  ",
         "Trailer-Empty:0.5",
         "Trailer-Full:0.5",
         "IGV-Empty:0.5",

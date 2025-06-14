@@ -19,7 +19,7 @@
                 "--cfg_file","cfgs/kl_models/pointpillar.yaml",
                 "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_100.pth",
                 "--out_dir","./model",
-                "--data_path","1733211963.001387.pcd"
+                "--data_path","data/1733211963.001387.pcd"
             ],
             "justMyCode": false
         }

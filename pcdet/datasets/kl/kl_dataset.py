@@ -85,9 +85,24 @@ def read_pcd_with_intensity(pcd_path):
 
     return points
 
-
-def read_bin(bin_file):
-    if bin_file.suffix == '.bin':
+# 读取点云数据，支持pcd格式与bin格式
+def read_pc(pc_file):
+    """
+    Read point cloud data from either .bin or .pcd format files.
+    
+    Args:
+        pc_file (Path): Path object pointing to the point cloud file (.bin or .pcd)
+        
+    Returns:
+        np.ndarray: Point cloud data as a numpy array with shape (N, 4) where:
+            - N is the number of points
+            - 4 represents (x, y, z, intensity) coordinates
+            
+    Note:
+        - For .bin files: Reads binary data with fields (x, y, z, intensity, ring, timestamp_2us)
+        - For .pcd files: Uses read_pcd_with_intensity() to read PCD format with intensity
+    """
+    if pc_file.suffix == '.bin':
         dtype = np.dtype([
             ('x', np.float32),
             ('y', np.float32),
@@ -96,12 +111,12 @@ def read_bin(bin_file):
             ('ring', np.float32),
             ('timestamp_2us', np.float32),
         ])
-        data = np.fromfile(bin_file, dtype=dtype)
+        data = np.fromfile(pc_file, dtype=dtype)
         points = np.vstack((data['x'], data['y'], data['z'], data['intensity'])).T
         return points
 
-    elif bin_file.suffix == '.pcd':
-        return read_pcd_with_intensity(bin_file)
+    elif pc_file.suffix == '.pcd':
+        return read_pcd_with_intensity(pc_file)
 
 def kl_eval(eval_det_annos, eval_gt_annos):
     pass
@@ -118,6 +133,9 @@ class KLDataset(DatasetTemplate):
         else:
             self.use_camera = False
         self.include_kl_data(self.mode)
+        
+        self.filter_gt_by_points = self.dataset_cfg.get('POINT_FILTER', {}).get('ENABLED', False)
+        self.class_min_points_dict = self.dataset_cfg.get('POINT_FILTER', {}).get('FILTER_MIN_POINTS_BY_CLASS', {})
 
     def include_kl_data(self, mode):
         self.logger.info('Loading KL dataset')
@@ -156,7 +174,7 @@ class KLDataset(DatasetTemplate):
         
         for lidar_name, lidar_extrinsic_name in extrinsic_names.items():
             lidar_path = self.root_path / info['lidars'][lidar_name]
-            points=read_bin(lidar_path)
+            points=read_pc(lidar_path)
             # times = np.zeros((points.shape[0], 1))
             # points = np.concatenate((points, times), axis=1)
             if use_extrinsic:
@@ -177,7 +195,7 @@ class KLDataset(DatasetTemplate):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidars'][lidar_name]
 
-        points=read_bin(lidar_path)
+        points=read_pc(lidar_path)
         times = np.zeros((points.shape[0], 1))
         points = np.concatenate((points, times), axis=1)
         return points
@@ -209,9 +227,26 @@ class KLDataset(DatasetTemplate):
             annos = info['annos']
             gt_names = annos['name']
             gt_boxes_lidar = annos['gt_boxes_lidar']
+            gt_num_lidar_pts=annos['num_lidar_pts']
+            
+            # ⭐ 点数过滤逻辑开始 ⭐
+            if getattr(self, 'filter_gt_by_points', False):
+                keep_mask = np.ones(len(gt_names), dtype=bool)
+                for i in range(len(gt_names)):
+                    cls = gt_names[i]
+                    min_pts = self.class_min_points_dict.get(cls, 0)
+                    if gt_num_lidar_pts[i] < min_pts:
+                        keep_mask[i] = False
+
+                gt_names = gt_names[keep_mask]
+                gt_boxes_lidar = gt_boxes_lidar[keep_mask]
+                gt_num_lidar_pts = gt_num_lidar_pts[keep_mask]
+            # ⭐ 点数过滤逻辑结束 ⭐
+
             input_dict.update({
                 'gt_names': gt_names,
                 'gt_boxes': gt_boxes_lidar
+                # 'gt_num_lidar_pts':gt_num_lidar_pts
             })
 
         if self.use_camera:

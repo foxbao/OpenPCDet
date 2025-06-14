@@ -18,6 +18,25 @@ INFO_PATH: {
 GET_ITEM_LIST: ["points"]
 FOV_POINTS_ONLY: True
 
+POINT_FILTER:
+  ENABLED: True
+  FILTER_MIN_POINTS_BY_CLASS:
+    Pedestrian: 5
+    Car: 5
+    IGV-Full: 5
+    Truck: 5
+    Trailer-Empty: 5
+    Trailer-Full: 5
+    IGV-Empty: 5
+    Crane: 20
+    OtherVehicle: 5
+    Cone: 5
+    ContainerForklift: 5
+    Forklift: 5
+    Lorry: 5
+    ConstructionVehicle: 5
+    WheelCrane: 5
+
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
@@ -28,7 +47,7 @@ DATA_AUGMENTOR:
              filter_by_min_points: [
                     'Pedestrian:5', 'Car:5', 'IGV-Full:5', 'Truck:5',
                     'Trailer-Empty:5','Trailer-Full:5',
-                    'IGV-Empty:5', 'Crane:5', 'OtherVehicle:5', 'Cone:5',
+                    'IGV-Empty:5', 'Crane:20', 'OtherVehicle:5', 'Cone:5',
                     'ContainerForklift:5', 'Forklift:5', 'Lorry:5', 'ConstructionVehicle:5'
              ],
           }

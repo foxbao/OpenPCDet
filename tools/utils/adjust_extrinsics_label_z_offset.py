@@ -2,9 +2,12 @@ import os
 import json
 
 # ==== 配置项 ====
-z_offset = -1.6  # 要加的偏移值
-sample_dir = "/home/baojiali/Downloads/public_code/OpenPCDet/data/kl/v1.0-trainval/sample"
-label_dir = "/home/baojiali/Downloads/public_code/OpenPCDet/data/kl/v1.0-trainval/label"
+z_offset = 1.5  # 要加的偏移值
+# sample_dir = "/home/baojiali/Downloads/public_code/OpenPCDet/data/kl/v1.0-trainval/sample"
+# label_dir = "/home/baojiali/Downloads/public_code/OpenPCDet/data/kl/v1.0-trainval/label"
+
+sample_dir = "/home/baojiali/Downloads/public_code/OpenPCDet/data/lightwheel/v1.0-trainval/sample"
+label_dir = "/home/baojiali/Downloads/public_code/OpenPCDet/data/lightwheel/v1.0-trainval/label"
 
 def process_extrinsics_json(file_path):
     with open(file_path, "r") as f:
