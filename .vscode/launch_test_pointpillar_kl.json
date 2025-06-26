@@ -13,7 +13,7 @@
             "cwd": "${workspaceFolder}/tools",
             "env":{
                 "PYTHONPATH":"${workspaceFolder}/tools",
-                "CUDA_VISIBLE_DEVICES": "5" 
+                "CUDA_VISIBLE_DEVICES": "0" 
             },
             "args": [
                 "--cfg_file","cfgs/kl_models/pointpillar.yaml",

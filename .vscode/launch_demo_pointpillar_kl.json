@@ -13,11 +13,12 @@
             "cwd": "${workspaceFolder}/tools",
             "env":{
                 "PYTHONPATH":"${workspaceFolder}/tools",
-                "CUDA_VISIBLE_DEVICES": "5" 
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
                 "--cfg_file","cfgs/kl_models/pointpillar.yaml",
-                "--ckpt","../output/kl_models/pointpillar/default/ckpt/checkpoint_epoch_100.pth"
+                "--ckpt","../output/kl_models/pointpillar/default/ckpt/latest_model.pth",
+                "--save_to_file"
             ],
             "justMyCode": false
         }

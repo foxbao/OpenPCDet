@@ -22,20 +22,20 @@ POINT_FILTER:
   ENABLED: True
   FILTER_MIN_POINTS_BY_CLASS:
     Pedestrian: 5
-    Car: 5
-    IGV-Full: 5
-    Truck: 5
-    Trailer-Empty: 5
-    Trailer-Full: 5
-    IGV-Empty: 5
+    Car: 10
+    IGV-Full: 10
+    Truck: 10
+    Trailer-Empty: 10
+    Trailer-Full: 10
+    IGV-Empty: 10
     Crane: 20
     OtherVehicle: 5
     Cone: 5
-    ContainerForklift: 5
-    Forklift: 5
-    Lorry: 5
+    ContainerForklift: 10
+    Forklift: 10
+    Lorry: 10
     ConstructionVehicle: 5
-    WheelCrane: 5
+    WheelCrane: 30
 
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']

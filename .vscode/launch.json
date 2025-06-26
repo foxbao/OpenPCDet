@@ -15,7 +15,7 @@
                 "PYTHONPATH":"${workspaceFolder}/tools"
             },
             "args": [
-                "--cfg_file","cfgs/kl_models/pointpillar.yaml"
+                "--cfg_file","cfgs/kl_models/centerpoint.yaml"
             ],
             "justMyCode": false
         }

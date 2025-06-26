@@ -14,11 +14,12 @@ CLASS_NAMES:
     "Forklift",
     "Lorry",
     "ConstructionVehicle",
+    "WheelCrane",
   ]
 
 DATA_CONFIG:
   _BASE_CONFIG_: cfgs/dataset_configs/kl_dataset.yaml
-  POINT_CLOUD_RANGE: [-70.4, -40, -3, 70.4, 40, 1]
+  POINT_CLOUD_RANGE: [-70.4, -40, -3, 70.4, 40, 5]
   DATA_PROCESSOR:
     - NAME: mask_points_and_boxes_outside_range
       REMOVE_OUTSIDE_BOXES: True
@@ -27,9 +28,29 @@ DATA_CONFIG:
       SHUFFLE_ENABLED: { "train": True, "test": False }
 
     - NAME: transform_points_to_voxels
-      VOXEL_SIZE: [0.05, 0.05, 0.1]
+      VOXEL_SIZE: [0.05, 0.05, 0.2]
       MAX_POINTS_PER_VOXEL: 32
-      MAX_NUMBER_OF_VOXELS: { "train": 16000, "test": 40000 }
+      MAX_NUMBER_OF_VOXELS: { "train": 80000, "test": 40000 }
+
+  POINT_FILTER:
+    ENABLED: True
+    FILTER_MIN_POINTS_BY_CLASS:
+      Pedestrian: 5
+      Car: 10
+      IGV-Full: 10
+      Truck: 10
+      Trailer-Empty: 10
+      Trailer-Full: 10
+      IGV-Empty: 10
+      Crane: 20
+      OtherVehicle: 5
+      Cone: 5
+      ContainerForklift: 10
+      Forklift: 10
+      Lorry: 10
+      ConstructionVehicle: 5
+      WheelCrane: 30
+
   DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ["placeholder"]
     AUG_CONFIG_LIST:
@@ -42,19 +63,20 @@ DATA_CONFIG:
             filter_by_min_points:
               [
                 "Pedestrian:5",
-                "Car:5",
+                "Car:10",
                 "IGV-Full:5",
                 "Truck:5",
                 "Trailer-Empty:5",
                 "Trailer-Full:5",
                 "IGV-Empty:5",
-                "Crane:5",
+                "Crane:20",
                 "OtherVehicle:5",
                 "Cone:5",
                 "ContainerForklift:5",
                 "Forklift:5",
                 "Lorry:5",
                 "ConstructionVehicle:5",
+                "WheelCrane:30",
               ],
             filter_by_difficulty: [-1],
           }
@@ -75,6 +97,7 @@ DATA_CONFIG:
             "Forklift:15",
             "Lorry:15",
             "ConstructionVehicle:15",
+            "WheelCrane:15",
           ]
         NUM_POINT_FEATURES: 4
         DATABASE_WITH_FAKELIDAR: False
@@ -122,7 +145,7 @@ MODEL:
         ["IGV-Full", "IGV-Empty"],                    # head 2: IGV相关
         ["Truck", "Lorry", "ConstructionVehicle"],    # head 3: 工程与货车类
         ["Trailer-Empty", "Trailer-Full"],            # head 4: 拖车类
-        ["Crane", "ContainerForklift", "Forklift","OtherVehicle"],   # head 5: 起重和叉车类
+        ["Crane", "ContainerForklift", "Forklift","OtherVehicle","WheelCrane"],   # head 5: 起重和叉车类
         [Pedestrian,"Cone"],                     # head 6: 其他杂项类
       ]
 
@@ -153,7 +176,7 @@ MODEL:
         }
     POST_PROCESSING:
       SCORE_THRESH: 0.5
-      POST_CENTER_LIMIT_RANGE: [-70.4, -40, -3, 70.4, 40, 1]
+      POST_CENTER_LIMIT_RANGE: [-70.4, -40, -3, 70.4, 40, 5]
       MAX_OBJ_PER_SAMPLE: 500
       NMS_CONFIG:
         NMS_TYPE: nms_gpu
@@ -177,7 +200,7 @@ MODEL:
 
 OPTIMIZATION:
   BATCH_SIZE_PER_GPU: 6
-  NUM_EPOCHS: 100
+  NUM_EPOCHS: 150
 
   OPTIMIZER: adam_onecycle
   LR: 0.003
