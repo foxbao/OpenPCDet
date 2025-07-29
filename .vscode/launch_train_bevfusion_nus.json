@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tools",
             "env":{
-                "PYTHONPATH":"${workspaceFolder}/tools"
+                "PYTHONPATH":"${workspaceFolder}/tools",
+                "CUDA_VISIBLE_DEVICES": "7" 
             },
             "args": [
                 "--cfg_file","cfgs/nuscenes_models/bevfusion.yaml"

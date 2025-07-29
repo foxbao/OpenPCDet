@@ -18,8 +18,8 @@ CLASS_NAMES:
   ]
 
 DATA_CONFIG:
-  _BASE_CONFIG_: cfgs/dataset_configs/kl_dataset.yaml
-  # _BASE_CONFIG_: cfgs/dataset_configs/lightwheel_dataset.yaml
+  # _BASE_CONFIG_: cfgs/dataset_configs/kl_dataset.yaml
+  _BASE_CONFIG_: cfgs/dataset_configs/lightwheel_dataset.yaml
   # POINT_CLOUD_RANGE: [-69.12, -39.68, -3, 69.12, 39.68, 1]
   POINT_CLOUD_RANGE: [-69.12, -39.68, -3, 69.12, 39.68, 5]
   DATA_PROCESSOR:
@@ -44,14 +44,14 @@ DATA_CONFIG:
       Trailer-Empty: 10
       Trailer-Full: 10
       IGV-Empty: 10
-      Crane: 20
+      Crane: 15
       OtherVehicle: 5
       Cone: 5
       ContainerForklift: 10
       Forklift: 10
       Lorry: 10
-      ConstructionVehicle: 5
-      WheelCrane: 30
+      ConstructionVehicle: 20
+      WheelCrane: 100
 
   DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ["placeholder"]
@@ -66,40 +66,40 @@ DATA_CONFIG:
               [
                 "Pedestrian:5",
                 "Car:10",
-                "IGV-Full:5",
-                "Truck:5",
-                "Trailer-Empty:5",
-                "Trailer-Full:5",
-                "IGV-Empty:5",
-                "Crane:20",
-                "OtherVehicle:5",
+                "IGV-Full:10",
+                "Truck:10",
+                "Trailer-Empty:10",
+                "Trailer-Full:10",
+                "IGV-Empty:10",
+                "Crane:15",
+                "OtherVehicle:3",
                 "Cone:5",
-                "ContainerForklift:5",
-                "Forklift:5",
-                "Lorry:5",
-                "ConstructionVehicle:5",
-                "WheelCrane:30",
+                "ContainerForklift:10",
+                "Forklift:10",
+                "Lorry:10",
+                "ConstructionVehicle:20",
+                "WheelCrane:100",
               ],
             filter_by_difficulty: [-1],
           }
 
         SAMPLE_GROUPS:
           [
-            "Pedestrian:15",
-            "Car:15",
-            "IGV-Full:15",
-            "Truck:15",
-            "Trailer-Empty:15",
-            "Trailer-Full:15",
-            "IGV-Empty:15",
-            "Crane:15",
-            "OtherVehicle:15",
-            "Cone:15",
-            "ContainerForklift:15",
-            "Forklift:15",
-            "Lorry:15",
-            "ConstructionVehicle:15",
-            "WheelCrane:15",
+            "Pedestrian:10",
+            "Car:8",
+            "IGV-Full:5",
+            "Truck:10",
+            "Trailer-Empty:10",
+            "Trailer-Full:10",
+            "IGV-Empty:6",
+            "Crane:8",
+            "OtherVehicle:5",
+            "Cone:6",
+            "ContainerForklift:5",
+            "Forklift:5",
+            "Lorry:5",
+            "ConstructionVehicle:5",
+            "WheelCrane:5",
           ]
         NUM_POINT_FEATURES: 4
         DATABASE_WITH_FAKELIDAR: False
@@ -329,7 +329,7 @@ MODEL:
         "Trailer-Empty:0.5",
         "Trailer-Full:0.5",
         "IGV-Empty:0.5",
-        "Crane:0.5",
+        "Crane:0.4",
         "OtherVehicle:0.5",
         "Cone:0.5",
         "ContainerForklift:0.3",
@@ -349,7 +349,7 @@ MODEL:
 
 OPTIMIZATION:
   BATCH_SIZE_PER_GPU: 4
-  NUM_EPOCHS: 150
+  NUM_EPOCHS: 100
 
   OPTIMIZER: adam_onecycle
   LR: 0.003

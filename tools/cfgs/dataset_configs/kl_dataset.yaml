@@ -37,32 +37,36 @@ POINT_FILTER:
     ConstructionVehicle: 5
     WheelCrane: 30
 
+INTENSITY_FILTER:
+  ENABLED: True
+  THRESHOLD: 5.0
+
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
-        - NAME: gt_sampling
-          DB_INFO_PATH:
-              - kl_dbinfos.pkl
-          PREPARE: {
-             filter_by_min_points: [
-                    'Pedestrian:5', 'Car:5', 'IGV-Full:5', 'Truck:5',
-                    'Trailer-Empty:5','Trailer-Full:5',
-                    'IGV-Empty:5', 'Crane:20', 'OtherVehicle:5', 'Cone:5',
-                    'ContainerForklift:5', 'Forklift:5', 'Lorry:5', 'ConstructionVehicle:5'
-             ],
-          }
+        # - NAME: gt_sampling
+        #   DB_INFO_PATH:
+        #       - kl_dbinfos.pkl
+        #   PREPARE: {
+        #      filter_by_min_points: [
+        #             'Pedestrian:5', 'Car:5', 'IGV-Full:5', 'Truck:5',
+        #             'Trailer-Empty:5','Trailer-Full:5',
+        #             'IGV-Empty:5', 'Crane:20', 'OtherVehicle:5', 'Cone:5',
+        #             'ContainerForklift:5', 'Forklift:5', 'Lorry:5', 'ConstructionVehicle:5'
+        #      ],
+        #   }
 
-          SAMPLE_GROUPS: [
-                'Pedestrian:36', 'Car:7', 'IGV-Full:1', 'Truck:26',
-                'Trailer-Empty:19','Trailer-Full:8',
-                'IGV-Empty:4', 'Crane:8', 'OtherVehicle:1', 'Cone:2',
-                'ContainerForklift:1', 'Forklift:1', 'Lorry:2', 'ConstructionVehicle:2'
-          ]
+        #   SAMPLE_GROUPS: [
+        #         'Pedestrian:36', 'Car:7', 'IGV-Full:1', 'Truck:26',
+        #         'Trailer-Empty:19','Trailer-Full:8',
+        #         'IGV-Empty:4', 'Crane:8', 'OtherVehicle:1', 'Cone:2',
+        #         'ContainerForklift:1', 'Forklift:1', 'Lorry:2', 'ConstructionVehicle:2'
+        #   ]
 
-          NUM_POINT_FEATURES: 4
-          DATABASE_WITH_FAKELIDAR: False
-          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
-          LIMIT_WHOLE_SCENE: True
+        #   NUM_POINT_FEATURES: 4
+        #   DATABASE_WITH_FAKELIDAR: False
+        #   REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+        #   LIMIT_WHOLE_SCENE: True
 
         - NAME: random_world_flip
           ALONG_AXIS_LIST: ['x']
@@ -95,6 +99,6 @@ DATA_PROCESSOR:
       VOXEL_SIZE: [0.05, 0.05, 0.1]
       MAX_POINTS_PER_VOXEL: 5
       MAX_NUMBER_OF_VOXELS: {
-        'train': 16000,
+        'train': 80000,
         'test': 40000
       }

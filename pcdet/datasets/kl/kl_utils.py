@@ -79,6 +79,8 @@ def match_multi_sensor_data(timestamp:str, multi_sensor_files:dict,multi_sensor_
     for sensor_name in multi_sensor_files:
         sensor_files=multi_sensor_files[sensor_name]
         sensor_timestamps=multi_sensor_timestamps[sensor_name]
+        if not sensor_files:  # 如果列表为空，跳过这个 sensor
+            continue
         nearest_file = find_nearest_data(timestamp, sensor_files, sensor_timestamps)
         data_dict[sensor_name] = str(nearest_file)
     return data_dict

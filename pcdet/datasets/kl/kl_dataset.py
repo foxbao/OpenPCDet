@@ -42,6 +42,160 @@ def check_nan_inf(arr):
     return np.any(has_nan) or np.any(has_inf)
 
 
+
+
+# def read_pcd_with_intensity(pcd_path):
+#     # 读取文件头
+#     with open(pcd_path, 'rb') as f:
+#         header = []
+#         while True:
+#             line = f.readline().decode('utf-8').strip()
+#             header.append(line)
+#             if line.startswith('DATA'):
+#                 break
+
+#     # 解析字段信息
+#     fields = None
+#     size = None
+#     type_map = {'F': np.float32, 'U': np.uint8}
+#     for line in header:
+#         if line.startswith('FIELDS'):
+#             fields = line.split()[1:]
+#         elif line.startswith('SIZE'):
+#             size = list(map(int, line.split()[1:]))
+#         elif line.startswith('TYPE'):
+#             type_ = line.split()[1:]
+
+#     # 计算数据偏移量（跳过头部字节）
+#     data_offset = len('\n'.join(header)) + 1
+
+#     # 定义结构化 dtype
+#     dtype = np.dtype([(f, type_map[t]) for f, t in zip(fields, type_)])
+#     data = np.fromfile(pcd_path, dtype=dtype, offset=data_offset)
+
+#     # 将 x, y, z, intensity 取出
+#     xyz = np.vstack([data['x'], data['y'], data['z']]).T
+#     intensity = data['intensity'].reshape(-1, 1)
+
+#     # 拼接为 (N, 4)
+#     points = np.hstack((xyz, intensity))
+
+#     # 过滤掉包含 NaN 或 Inf 的点
+#     is_finite = np.all(np.isfinite(points), axis=1)
+#     points = points[is_finite]
+
+
+#     return points
+
+# # 读取点云数据，支持pcd格式与bin格式
+# def read_pc(pc_file):
+#     """
+#     Read point cloud data from either .bin or .pcd format files.
+    
+#     Args:
+#         pc_file (Path): Path object pointing to the point cloud file (.bin or .pcd)
+        
+#     Returns:
+#         np.ndarray: Point cloud data as a numpy array with shape (N, 4) where:
+#             - N is the number of points
+#             - 4 represents (x, y, z, intensity) coordinates
+            
+#     Note:
+#         - For .bin files: Reads binary data with fields (x, y, z, intensity, ring, timestamp_2us)
+#         - For .pcd files: Uses read_pcd_with_intensity() to read PCD format with intensity
+#     """
+#     if pc_file.suffix == '.bin':
+#         dtype = np.dtype([
+#             ('x', np.float32),
+#             ('y', np.float32),
+#             ('z', np.float32),
+#             ('intensity', np.float32),
+#             ('ring', np.float32),
+#             ('timestamp_2us', np.float32),
+#         ])
+#         data = np.fromfile(pc_file, dtype=dtype)
+#         points = np.vstack((data['x'], data['y'], data['z'], data['intensity'])).T
+#         return points
+
+#     elif pc_file.suffix == '.pcd':
+#         return read_pcd_with_intensity(pc_file)
+
+
+# def read_pcd_with_intensity(pcd_path, verbose=False):
+#     """
+#     读取PCD文件，并过滤NaN/Inf点（增强版）
+    
+#     Args:
+#         pcd_path: PCD文件路径
+#         verbose: 是否打印调试信息
+        
+#     Returns:
+#         np.ndarray: (N, 4)的点云数组 [x, y, z, intensity]
+#     """
+#     try:
+#         # 读取文件头
+#         with open(pcd_path, 'rb') as f:
+#             header = []
+#             while True:
+#                 line = f.readline().decode('utf-8').strip()
+#                 header.append(line)
+#                 if line.startswith('DATA'):
+#                     break
+
+#         # 解析字段信息
+#         fields = size = type_ = None
+#         type_map = {'F': np.float32, 'U': np.uint8}
+#         for line in header:
+#             if line.startswith('FIELDS'):
+#                 fields = line.split()[1:]
+#             elif line.startswith('SIZE'):
+#                 size = list(map(int, line.split()[1:]))
+#             elif line.startswith('TYPE'):
+#                 type_ = line.split()[1:]
+
+#         # 检查字段完整性
+#         if None in (fields, size, type_):
+#             raise ValueError("Invalid PCD header: missing FIELDS/SIZE/TYPE")
+
+#         # 计算数据偏移量
+#         data_offset = len('\n'.join(header)) + 1
+
+#         # 定义结构化dtype
+#         dtype = np.dtype([(f, type_map[t]) for f, t in zip(fields, type_)])
+#         data = np.fromfile(pcd_path, dtype=dtype, offset=data_offset)
+
+#         # 提取xyz和强度
+#         xyz = np.vstack([data['x'], data['y'], data['z']]).T
+#         intensity = data['intensity'].reshape(-1, 1)
+#         points = np.hstack((xyz, intensity))
+
+#         # 检测并过滤无效点
+#         valid_mask = np.isfinite(points).all(axis=1)
+#         valid_count=np.sum(valid_mask)
+#         invalid_count = len(points) - np.sum(valid_mask)
+        
+#         if invalid_count > 0:
+#             if verbose:
+#                 print(f"WARNING: Filtered {invalid_count} invalid points (NaN/Inf) in {pcd_path}")
+#                 # 打印前5个无效点的坐标（调试用）
+#                 invalid_points = points[~valid_mask]
+#                 print("Sample invalid points:\n", invalid_points[:5])
+            
+#             points = points[valid_mask]
+
+#         # 联合检查 NaN 和 Inf
+#         invalid_mask = ~np.isfinite(points[:, :3]).any(axis=1)  # 同时检测 NaN 和 Inf
+#         if np.any(invalid_mask):
+#             invalid_indices = np.where(invalid_mask)[0]
+#             print(f"ERROR: Found {len(invalid_indices)} invalid (NaN/Inf) points:")
+#             print("Indices:", invalid_indices)
+#             print("Example invalid point:", points[invalid_indices[0]])
+#         return points
+
+#     except Exception as e:
+#         raise RuntimeError(f"Failed to read {pcd_path}: {str(e)}")
+
+
 def read_pcd_with_intensity(pcd_path):
     # 读取文件头
     with open(pcd_path, 'rb') as f:
@@ -52,10 +206,8 @@ def read_pcd_with_intensity(pcd_path):
             if line.startswith('DATA'):
                 break
 
-    # 解析字段信息
-    fields = None
-    size = None
-    type_map = {'F': np.float32, 'U': np.uint8}
+    # 解析字段、类型、大小
+    fields, size, type_ = None, None, None
     for line in header:
         if line.startswith('FIELDS'):
             fields = line.split()[1:]
@@ -64,59 +216,110 @@ def read_pcd_with_intensity(pcd_path):
         elif line.startswith('TYPE'):
             type_ = line.split()[1:]
 
-    # 计算数据偏移量（跳过头部字节）
-    data_offset = len('\n'.join(header)) + 1
+    if fields is None or size is None or type_ is None:
+        raise ValueError("Invalid PCD header: missing FIELDS/SIZE/TYPE")
 
-    # 定义结构化 dtype
-    dtype = np.dtype([(f, type_map[t]) for f, t in zip(fields, type_)])
+    if not len(fields) == len(size) == len(type_):
+        raise ValueError("FIELDS/SIZE/TYPE length mismatch")
+
+    # 构建 dtype：根据 TYPE 和 SIZE 推断
+    def get_numpy_dtype(t, s):
+        if t == 'F':
+            if s == 4:
+                return np.float32
+            elif s == 8:
+                return np.float64
+        elif t == 'U':
+            if s == 1:
+                return np.uint8
+            elif s == 2:
+                return np.uint16
+            elif s == 4:
+                return np.uint32
+        elif t == 'I':
+            if s == 1:
+                return np.int8
+            elif s == 2:
+                return np.int16
+            elif s == 4:
+                return np.int32
+        raise ValueError(f"Unsupported TYPE/SIZE combination: TYPE={t}, SIZE={s}")
+
+    dtype = np.dtype([(f, get_numpy_dtype(t, s)) for f, t, s in zip(fields, type_, size)])
+
+    # 计算数据起始位置
+    data_offset = len('\n'.join(header)) + 1
     data = np.fromfile(pcd_path, dtype=dtype, offset=data_offset)
 
-    # 将 x, y, z, intensity 取出
-    xyz = np.vstack([data['x'], data['y'], data['z']]).T
-    intensity = data['intensity'].reshape(-1, 1)
+    # 检查字段存在
+    required = {'x', 'y', 'z', 'intensity', 'ring'}
+    if not required.issubset(data.dtype.names):
+        raise ValueError(f"Missing required fields. Expected at least: {required}")
 
-    # 拼接为 (N, 4)
-    points = np.hstack((xyz, intensity))
+    # 构造输出数据（自动判断是否含有 timestamp_2us）
+    base_fields = ['x', 'y', 'z', 'intensity', 'ring']
+    base_fields = ['x', 'y', 'z', 'intensity']
+    arrs = [data[f].astype(np.float32) for f in base_fields]
 
-    # 过滤掉包含 NaN 或 Inf 的点
-    is_finite = np.all(np.isfinite(points), axis=1)
-    points = points[is_finite]
+    # if 'timestamp_2us' in data.dtype.names:
+    #     arrs.append(data['timestamp_2us'].astype(np.float32))
+
+    all_data = np.vstack(arrs).T
+
+    # 过滤含 NaN 的点
+    valid_mask = ~np.isnan(all_data).any(axis=1)
+    return all_data[valid_mask]
 
 
-    return points
-
-# 读取点云数据，支持pcd格式与bin格式
-def read_pc(pc_file):
+def read_pc(pc_file, verbose=False):
     """
-    Read point cloud data from either .bin or .pcd format files.
+    读取点云（支持.bin/.pcd），自动过滤NaN/Inf
     
     Args:
-        pc_file (Path): Path object pointing to the point cloud file (.bin or .pcd)
+        pc_file: 文件路径（Path对象或字符串）
+        verbose: 是否打印调试信息
         
     Returns:
-        np.ndarray: Point cloud data as a numpy array with shape (N, 4) where:
-            - N is the number of points
-            - 4 represents (x, y, z, intensity) coordinates
-            
-    Note:
-        - For .bin files: Reads binary data with fields (x, y, z, intensity, ring, timestamp_2us)
-        - For .pcd files: Uses read_pcd_with_intensity() to read PCD format with intensity
+        np.ndarray: (N, 4)的合法点云数据 [x, y, z, intensity]
     """
-    if pc_file.suffix == '.bin':
-        dtype = np.dtype([
-            ('x', np.float32),
-            ('y', np.float32),
-            ('z', np.float32),
-            ('intensity', np.float32),
-            ('ring', np.float32),
-            ('timestamp_2us', np.float32),
-        ])
-        data = np.fromfile(pc_file, dtype=dtype)
-        points = np.vstack((data['x'], data['y'], data['z'], data['intensity'])).T
+    pc_file = Path(pc_file)
+    if not pc_file.exists():
+        raise FileNotFoundError(f"Point cloud file not found: {pc_file}")
+
+    try:
+        if pc_file.suffix == '.bin':
+            dtype = np.dtype([
+                ('x', np.float32), ('y', np.float32), ('z', np.float32),
+                ('intensity', np.float32), ('ring', np.float32),  # 根据实际格式调整
+                ('timestamp_2us', np.float32)
+            ])
+            data = np.fromfile(pc_file, dtype=dtype)
+            points = np.vstack((data['x'], data['y'], data['z'], data['intensity'])).T
+            
+        elif pc_file.suffix == '.pcd':
+            points = read_pcd_with_intensity(pc_file)
+            
+        else:
+            raise ValueError(f"Unsupported file format: {pc_file.suffix}")
+
+        # 二次检查（防止上游未处理的情况）
+        valid_mask = np.isfinite(points).all(axis=1)
+        if np.any(~valid_mask):
+            points = points[valid_mask]
+            if verbose:
+                print(f"Secondary filtering: Removed {np.sum(~valid_mask)} invalid points")
+
+        # 空数据检查
+        if len(points) == 0:
+            raise ValueError(f"Empty point cloud after filtering: {pc_file}")
+
+        points = points[np.max(np.abs(points[:, :3]), axis=1) < 1e3]  # 保留合理值,防止数值溢出
         return points
 
-    elif pc_file.suffix == '.pcd':
-        return read_pcd_with_intensity(pc_file)
+    except Exception as e:
+        raise RuntimeError(f"Error reading {pc_file}: {str(e)}")
+
+
 
 def kl_eval(eval_det_annos, eval_gt_annos):
     pass
@@ -136,6 +339,10 @@ class KLDataset(DatasetTemplate):
         
         self.filter_gt_by_points = self.dataset_cfg.get('POINT_FILTER', {}).get('ENABLED', False)
         self.class_min_points_dict = self.dataset_cfg.get('POINT_FILTER', {}).get('FILTER_MIN_POINTS_BY_CLASS', {})
+        
+        self.intensity_filter_cfg = self.dataset_cfg.get('INTENSITY_FILTER', {})
+        self.use_intensity_filter = self.intensity_filter_cfg.get('ENABLED', False)
+        self.intensity_threshold = self.intensity_filter_cfg.get('THRESHOLD', 0.0)
 
     def include_kl_data(self, mode):
         self.logger.info('Loading KL dataset')
@@ -175,6 +382,12 @@ class KLDataset(DatasetTemplate):
         for lidar_name, lidar_extrinsic_name in extrinsic_names.items():
             lidar_path = self.root_path / info['lidars'][lidar_name]
             points=read_pc(lidar_path)
+            
+            # ⭐ 如果开启强度过滤
+            if self.use_intensity_filter:
+                intensity = points[:, 3]
+                mask = intensity >= self.intensity_threshold
+                points = points[mask]
             # times = np.zeros((points.shape[0], 1))
             # points = np.concatenate((points, times), axis=1)
             if use_extrinsic:
@@ -200,8 +413,6 @@ class KLDataset(DatasetTemplate):
         points = np.concatenate((points, times), axis=1)
         return points
 
-
-
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
             return len(self.infos) * self.total_epochs
@@ -217,6 +428,7 @@ class KLDataset(DatasetTemplate):
         info = copy.deepcopy(self.infos[index])
 
         points=self.get_merged_lidar(index,True)
+        # check_nan_inf(points)
         input_dict = {
             'points': points,
             'frame_id': Path(info['lidars']['helios_front_left']).stem,

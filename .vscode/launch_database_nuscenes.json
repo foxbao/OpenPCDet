@@ -17,7 +17,7 @@
             "args": [
                 "--cfg_file","cfgs/dataset_configs/nuscenes_dataset.yaml",
                 "--func","create_nuscenes_infos",
-                "--version","v1.0-mini",
+                "--version","v1.0-trainval",
             ],
             "justMyCode": false
         }

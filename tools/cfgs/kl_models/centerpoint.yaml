@@ -42,14 +42,14 @@ DATA_CONFIG:
       Trailer-Empty: 10
       Trailer-Full: 10
       IGV-Empty: 10
-      Crane: 20
+      Crane: 15
       OtherVehicle: 5
       Cone: 5
       ContainerForklift: 10
       Forklift: 10
       Lorry: 10
-      ConstructionVehicle: 5
-      WheelCrane: 30
+      ConstructionVehicle: 20
+      WheelCrane: 15
 
   DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ["placeholder"]
@@ -64,40 +64,40 @@ DATA_CONFIG:
               [
                 "Pedestrian:5",
                 "Car:10",
-                "IGV-Full:5",
-                "Truck:5",
-                "Trailer-Empty:5",
-                "Trailer-Full:5",
-                "IGV-Empty:5",
-                "Crane:20",
-                "OtherVehicle:5",
+                "IGV-Full:10",
+                "Truck:10",
+                "Trailer-Empty:10",
+                "Trailer-Full:10",
+                "IGV-Empty:10",
+                "Crane:15",
+                "OtherVehicle:3",
                 "Cone:5",
-                "ContainerForklift:5",
-                "Forklift:5",
-                "Lorry:5",
-                "ConstructionVehicle:5",
-                "WheelCrane:30",
+                "ContainerForklift:10",
+                "Forklift:10",
+                "Lorry:10",
+                "ConstructionVehicle:20",
+                "WheelCrane:15",
               ],
             filter_by_difficulty: [-1],
           }
 
         SAMPLE_GROUPS:
           [
-            "Pedestrian:15",
-            "Car:15",
-            "IGV-Full:15",
-            "Truck:15",
-            "Trailer-Empty:15",
-            "Trailer-Full:15",
-            "IGV-Empty:15",
-            "Crane:15",
-            "OtherVehicle:15",
-            "Cone:15",
-            "ContainerForklift:15",
-            "Forklift:15",
-            "Lorry:15",
-            "ConstructionVehicle:15",
-            "WheelCrane:15",
+            "Pedestrian:10",
+            "Car:8",
+            "IGV-Full:5",
+            "Truck:10",
+            "Trailer-Empty:10",
+            "Trailer-Full:10",
+            "IGV-Empty:6",
+            "Crane:8",
+            "OtherVehicle:5",
+            "Cone:6",
+            "ContainerForklift:5",
+            "Forklift:5",
+            "Lorry:5",
+            "ConstructionVehicle:5",
+            "WheelCrane:5",
           ]
         NUM_POINT_FEATURES: 4
         DATABASE_WITH_FAKELIDAR: False
@@ -141,12 +141,12 @@ MODEL:
 
     CLASS_NAMES_EACH_HEAD:
       [
-        ["Car"],                         # head 1: 行人和小车类
-        ["IGV-Full", "IGV-Empty"],                    # head 2: IGV相关
-        ["Truck", "Lorry", "ConstructionVehicle"],    # head 3: 工程与货车类
-        ["Trailer-Empty", "Trailer-Full"],            # head 4: 拖车类
-        ["Crane", "ContainerForklift", "Forklift","OtherVehicle","WheelCrane"],   # head 5: 起重和叉车类
-        [Pedestrian,"Cone"],                     # head 6: 其他杂项类
+        ["Pedestrian"],                         # head 1: 行人和小车类
+        ["Car", "IGV-Full"],                    # head 2: IGV相关
+        ["Truck", "Trailer-Empty", "Trailer-Full"],    # head 3: 工程与货车类
+        ["IGV-Empty", "Crane"],            # head 4: 拖车类
+        ["OtherVehicle", "Cone", "ContainerForklift","Forklift","Lorry"],   # head 5: 起重和叉车类
+        [ConstructionVehicle,"WheelCrane"],                     # head 6: 其他杂项类
       ]
 
     SHARED_CONV_CHANNEL: 64
@@ -200,7 +200,7 @@ MODEL:
 
 OPTIMIZATION:
   BATCH_SIZE_PER_GPU: 6
-  NUM_EPOCHS: 150
+  NUM_EPOCHS: 200
 
   OPTIMIZER: adam_onecycle
   LR: 0.003

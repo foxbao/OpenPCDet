@@ -69,6 +69,7 @@ class TransFusionHead(nn.Module):
         self.model_cfg = model_cfg
         self.feature_map_stride = self.model_cfg.TARGET_ASSIGNER_CONFIG.get('FEATURE_MAP_STRIDE', None)
         self.dataset_name = self.model_cfg.TARGET_ASSIGNER_CONFIG.get('DATASET', 'nuScenes')
+        
 
         hidden_channel=self.model_cfg.HIDDEN_CHANNEL
         self.num_proposals = self.model_cfg.NUM_PROPOSALS
@@ -92,7 +93,13 @@ class TransFusionHead(nn.Module):
         self.loss_heatmap = loss_utils.GaussianFocalLoss()
         self.loss_heatmap_weight = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['hm_weight']
 
-        self.code_size = 10
+        # self.code_size = 10
+
+        # 根据数据集动态设置编码尺寸
+        if self.dataset_name == 'KLDataset':
+            self.code_size = 8
+        else:
+            self.code_size = 10
 
         # a shared convolution
         self.shared_conv = nn.Conv2d(in_channels=input_channels,out_channels=hidden_channel,kernel_size=3,padding=1)
@@ -382,7 +389,8 @@ class TransFusionHead(nn.Module):
         return loss_all,loss_dict
 
     def encode_bbox(self, bboxes):
-        code_size = 10
+        # code_size = 10
+        code_size = self.code_size
         targets = torch.zeros([bboxes.shape[0], code_size]).to(bboxes.device)
         targets[:, 0] = (bboxes[:, 0] - self.point_cloud_range[0]) / (self.feature_map_stride * self.voxel_size[0])
         targets[:, 1] = (bboxes[:, 1] - self.point_cloud_range[1]) / (self.feature_map_stride * self.voxel_size[1])

@@ -157,6 +157,14 @@ def main():
     
     print("saving to ","../result/groundtruth_train")
     
+    # aaaa=train_set.__getitem__(0)
+    # points = aaaa['points']
+    # # points = points[:, 1:]
+    # visualization_array_pyvista(
+    #     points,
+    #     box_colormap=box_colormap
+    # )
+    
     
     for idx, batch_dict in enumerate(tqdm(train_loader)):
         points = batch_dict['points']

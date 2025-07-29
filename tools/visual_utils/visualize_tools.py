@@ -287,7 +287,7 @@ def visualization_array_pyvista(
     #     shadow=True
     # )
     # 保存图像
-    os.makedirs(os.path.dirname(output_image), exist_ok=True)
+    # os.makedirs(os.path.dirname(output_image), exist_ok=True)
     # plotter.show()
     plotter.show(screenshot=output_image)
     plotter.close()
