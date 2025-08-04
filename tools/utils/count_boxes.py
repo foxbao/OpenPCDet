@@ -251,5 +251,11 @@ if __name__ == '__main__':
         'data/kl/v1.0-trainval/label/20250709',
         'data/kl/v1.0-trainval/label/20250709_chache',
         'data/kl/v1.0-trainval/label/20250710',
+        
+        'data/kl/v1.0-trainval/label/20250709_huichen',
+        'data/kl/v1.0-trainval/label/20250709_huichen2',
+        'data/kl/v1.0-trainval/label/20250710_2',
+        'data/kl/v1.0-trainval/label/20250711_huichen',
+        'data/lightwheel/v1.0-trainval/label/20250716_duigaoji_luntaidiao',
     ]
     count_boxes_multiple_folders(root_dirs)

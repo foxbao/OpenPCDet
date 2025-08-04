@@ -1,13 +1,12 @@
 import copy
-
 import numpy as np
-import os
+# import os
 import pickle
 from pathlib import Path
 from tqdm import tqdm
 import open3d as o3d
 from typing import List, Tuple
-import shutil
+# import shutil
 from ..dataset import DatasetTemplate
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from scipy.spatial.transform import Rotation as R
@@ -40,161 +39,6 @@ def check_nan_inf(arr):
         print("Found Inf at indices:", np.argwhere(has_inf))
 
     return np.any(has_nan) or np.any(has_inf)
-
-
-
-
-# def read_pcd_with_intensity(pcd_path):
-#     # 读取文件头
-#     with open(pcd_path, 'rb') as f:
-#         header = []
-#         while True:
-#             line = f.readline().decode('utf-8').strip()
-#             header.append(line)
-#             if line.startswith('DATA'):
-#                 break
-
-#     # 解析字段信息
-#     fields = None
-#     size = None
-#     type_map = {'F': np.float32, 'U': np.uint8}
-#     for line in header:
-#         if line.startswith('FIELDS'):
-#             fields = line.split()[1:]
-#         elif line.startswith('SIZE'):
-#             size = list(map(int, line.split()[1:]))
-#         elif line.startswith('TYPE'):
-#             type_ = line.split()[1:]
-
-#     # 计算数据偏移量（跳过头部字节）
-#     data_offset = len('\n'.join(header)) + 1
-
-#     # 定义结构化 dtype
-#     dtype = np.dtype([(f, type_map[t]) for f, t in zip(fields, type_)])
-#     data = np.fromfile(pcd_path, dtype=dtype, offset=data_offset)
-
-#     # 将 x, y, z, intensity 取出
-#     xyz = np.vstack([data['x'], data['y'], data['z']]).T
-#     intensity = data['intensity'].reshape(-1, 1)
-
-#     # 拼接为 (N, 4)
-#     points = np.hstack((xyz, intensity))
-
-#     # 过滤掉包含 NaN 或 Inf 的点
-#     is_finite = np.all(np.isfinite(points), axis=1)
-#     points = points[is_finite]
-
-
-#     return points
-
-# # 读取点云数据，支持pcd格式与bin格式
-# def read_pc(pc_file):
-#     """
-#     Read point cloud data from either .bin or .pcd format files.
-    
-#     Args:
-#         pc_file (Path): Path object pointing to the point cloud file (.bin or .pcd)
-        
-#     Returns:
-#         np.ndarray: Point cloud data as a numpy array with shape (N, 4) where:
-#             - N is the number of points
-#             - 4 represents (x, y, z, intensity) coordinates
-            
-#     Note:
-#         - For .bin files: Reads binary data with fields (x, y, z, intensity, ring, timestamp_2us)
-#         - For .pcd files: Uses read_pcd_with_intensity() to read PCD format with intensity
-#     """
-#     if pc_file.suffix == '.bin':
-#         dtype = np.dtype([
-#             ('x', np.float32),
-#             ('y', np.float32),
-#             ('z', np.float32),
-#             ('intensity', np.float32),
-#             ('ring', np.float32),
-#             ('timestamp_2us', np.float32),
-#         ])
-#         data = np.fromfile(pc_file, dtype=dtype)
-#         points = np.vstack((data['x'], data['y'], data['z'], data['intensity'])).T
-#         return points
-
-#     elif pc_file.suffix == '.pcd':
-#         return read_pcd_with_intensity(pc_file)
-
-
-# def read_pcd_with_intensity(pcd_path, verbose=False):
-#     """
-#     读取PCD文件，并过滤NaN/Inf点（增强版）
-    
-#     Args:
-#         pcd_path: PCD文件路径
-#         verbose: 是否打印调试信息
-        
-#     Returns:
-#         np.ndarray: (N, 4)的点云数组 [x, y, z, intensity]
-#     """
-#     try:
-#         # 读取文件头
-#         with open(pcd_path, 'rb') as f:
-#             header = []
-#             while True:
-#                 line = f.readline().decode('utf-8').strip()
-#                 header.append(line)
-#                 if line.startswith('DATA'):
-#                     break
-
-#         # 解析字段信息
-#         fields = size = type_ = None
-#         type_map = {'F': np.float32, 'U': np.uint8}
-#         for line in header:
-#             if line.startswith('FIELDS'):
-#                 fields = line.split()[1:]
-#             elif line.startswith('SIZE'):
-#                 size = list(map(int, line.split()[1:]))
-#             elif line.startswith('TYPE'):
-#                 type_ = line.split()[1:]
-
-#         # 检查字段完整性
-#         if None in (fields, size, type_):
-#             raise ValueError("Invalid PCD header: missing FIELDS/SIZE/TYPE")
-
-#         # 计算数据偏移量
-#         data_offset = len('\n'.join(header)) + 1
-
-#         # 定义结构化dtype
-#         dtype = np.dtype([(f, type_map[t]) for f, t in zip(fields, type_)])
-#         data = np.fromfile(pcd_path, dtype=dtype, offset=data_offset)
-
-#         # 提取xyz和强度
-#         xyz = np.vstack([data['x'], data['y'], data['z']]).T
-#         intensity = data['intensity'].reshape(-1, 1)
-#         points = np.hstack((xyz, intensity))
-
-#         # 检测并过滤无效点
-#         valid_mask = np.isfinite(points).all(axis=1)
-#         valid_count=np.sum(valid_mask)
-#         invalid_count = len(points) - np.sum(valid_mask)
-        
-#         if invalid_count > 0:
-#             if verbose:
-#                 print(f"WARNING: Filtered {invalid_count} invalid points (NaN/Inf) in {pcd_path}")
-#                 # 打印前5个无效点的坐标（调试用）
-#                 invalid_points = points[~valid_mask]
-#                 print("Sample invalid points:\n", invalid_points[:5])
-            
-#             points = points[valid_mask]
-
-#         # 联合检查 NaN 和 Inf
-#         invalid_mask = ~np.isfinite(points[:, :3]).any(axis=1)  # 同时检测 NaN 和 Inf
-#         if np.any(invalid_mask):
-#             invalid_indices = np.where(invalid_mask)[0]
-#             print(f"ERROR: Found {len(invalid_indices)} invalid (NaN/Inf) points:")
-#             print("Indices:", invalid_indices)
-#             print("Example invalid point:", points[invalid_indices[0]])
-#         return points
-
-#     except Exception as e:
-#         raise RuntimeError(f"Failed to read {pcd_path}: {str(e)}")
-
 
 def read_pcd_with_intensity(pcd_path):
     # 读取文件头
@@ -710,6 +554,7 @@ if __name__ == '__main__':
         last_two_parts = data_path.parts[-2:]   # 取最后两部分，如 ('data', 'kl')
         folder=last_two_parts[0]
         name=last_two_parts[1]
+        # 生成pkl文件
         create_kl_infos(
             version=dataset_cfg.VERSION,
             data_path=ROOT_DIR / folder / name,

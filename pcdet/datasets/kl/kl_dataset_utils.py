@@ -177,27 +177,6 @@ def obtain_sensor2top(
     sweep["sensor2lidar_translation"] = T
     return sweep
 
-# # 查找最近的点云文件
-# def find_nearest_pointcloud(timestamp, pointcloud_files, pointcloud_timestamps=None):
-#     """
-#     根据时间戳查找最近的点云文件。
-#     :param timestamp: 标注文件的时间戳（整数或字符串）
-#     :param pointcloud_files: 点云文件列表（Path 对象）
-#     :param pointcloud_timestamps: 预计算的时间戳列表（可选）
-#     :return: 最近的点云文件路径（字符串）
-#     """
-#     timestamp = int(timestamp)  # 确保时间戳是整数
-
-#     # 如果没有预计算时间戳，则实时计算
-#     if pointcloud_timestamps is None:
-#         pointcloud_timestamps = [int(f.stem) for f in pointcloud_files]
-
-#     # 使用 NumPy 计算最小差值
-#     diffs = np.abs(np.array(pointcloud_timestamps) - timestamp)
-#     nearest_index = np.argmin(diffs)
-#     return str(pointcloud_files[nearest_index])
-
-
 def quaternion_to_yaw(rotation)->float:
     """
     将四元数转换为偏航角 (yaw)。
@@ -228,22 +207,6 @@ def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
 
     gt_boxes = np.concatenate([xyz, lwh, [yaw]])
     return gt_boxes
-
-
-# def convert_to_gt_boxes_7dof(xyz, lwh, rotation):
-#     # 确保输入是 numpy 数组
-#     xyz = np.asarray(xyz)
-#     lwh = np.asarray(lwh)
-#     rotation = np.asarray(rotation)
-    
-#     # 将四元数转换为偏航角
-#     yaw = quaternion_to_yaw(rotation)
-    
-#     # 将 xyz, lwh, yaw 拼接成 gt_boxes
-#     gt_boxes = np.concatenate([xyz, lwh, [yaw]])
-    
-#     return gt_boxes
-
 
 def convert_json_to_annotations(json_data:List[dict]):
     annotations={}
