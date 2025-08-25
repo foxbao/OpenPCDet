@@ -289,7 +289,7 @@ MODEL:
         },
         {
           "class_name": "WheelCrane",
-          "anchor_sizes": [[6.93, 2.51, 2.84]],
+          "anchor_sizes": [[9.88, 2.92, 12.92]],
           "anchor_rotations": [0, 1.57],
           "anchor_bottom_heights": [0],
           "align_center": False,
@@ -336,7 +336,7 @@ MODEL:
         "Forklift:0.3",
         "Lorry:0.5",
         "ConstructionVehicle:0.5",
-        "WheelCrane:0.5",
+        "WheelCrane:0.1",
       ]
     EVAL_METRIC: kitti
 
